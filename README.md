@@ -1,0 +1,193 @@
+# Technical Exam
+
+A minimal Turborepo monorepo using Node.js 24, PNPM, TypeScript, and Biome.
+
+See [EXAM.md](./EXAM.md) for the Backend Developer and Senior Full-Stack Developer
+tracks, required tasks, optional work, and submission guidelines. The new
+endpoints and frontend workflow described there are candidate work, not
+implemented features of this scaffold.
+
+## Apps
+
+- `app/frontend`: Next.js App Router, running at http://localhost:3000.
+- `app/backend`: Fastify, running at http://127.0.0.1:3001.
+  `GET /` returns `{ "message": "Hello from Fastify" }`.
+
+The backend uses Effect 3.21.0 (`Effect.Do`, `pipe`, and combinators), without
+generators or `yield`. Source imports use `.ts` extensions; TypeScript rewrites
+them to runtime extensions during compilation.
+
+## Exam conventions
+
+The scaffold uses the following conventions:
+
+- Import Effect modules by namespace from submodule paths, for example
+  `import * as Effect from "effect/Effect"` and
+  `import { pipe } from "effect/Function"`, not from the `"effect"` barrel.
+- Compose small, named steps with `pipe`, `Effect.Do`, and combinators.
+  Do not use generators, `yield`, imperative loops, or `try/catch` in backend
+  application logic. Wrap external operations in Effects.
+- Keep failures typed and tagged. Handle expected errors explicitly with
+  `Effect.catchTags` at the HTTP boundary, and log infrastructure failures.
+- Keep validation/types in `src/domain.ts`, domain route plugins in
+  `src/routes/`, shared HTTP helpers in `src/http.ts`, Scylla access in
+  `src/repository.ts`, and startup/resource cleanup in `src/index.ts`.
+  `src/app.ts` registers the plugins with their injected repository.
+  Fastify's async plugin callbacks only register routes; application workflows
+  remain Effect pipelines. Inject persistence so endpoint tests do not require
+  Scylla.
+- Keep types close to their use. Introduce shared packages or additional
+  application layers only when the exercise actually needs them.
+- Test success paths and important failure/edge cases. Run tests from the root
+  with `pnpm test`; opt into real Scylla tests using the environment variable
+  below.
+
+Fastify, Effect Schema, Biome, and Node's test runner are intentional lightweight
+choices for this exam. Additional infrastructure and tooling are not
+prerequisites.
+
+## Local Docker deployment
+
+Requires Docker with Compose and enough memory for ScyllaDB (at least 1 GB for
+Scylla, plus memory for both apps and image builds). On WSL, start Docker Desktop
+and enable integration for your distribution.
+
+Run from the workspace root:
+
+```sh
+docker compose build                         # Build both production app images
+docker compose up -d --wait                   # Start and wait for healthy services
+docker compose logs -f backend               # Inspect backend logs
+```
+
+The frontend is at http://localhost:3000 and the backend is at
+http://localhost:3001. Scylla's CQL port is at `127.0.0.1:9042`.
+All published ports are restricted to the local machine. The services share the
+`tournament` network; the backend connects to `scylla`, and the frontend receives
+`API_BASE_URL=http://backend:3001` for future server-side API calls. The frontend
+UI is unchanged; browser-side requests would use the published backend address,
+not the internal Docker hostname.
+
+Scylla data persists in the `scylla-data` named volume. The backend waits for
+Scylla's health check, then idempotently creates the `tournament` keyspace and
+tables before accepting requests. `GET /health` checks database connectivity.
+The keyspace uses replication factor 1 for this local single-node setup, not
+production deployment.
+
+```sh
+docker compose down                          # Stop services; preserve database
+docker compose up -d --wait                   # Restart with existing data
+docker compose exec scylla cqlsh              # Inspect stored data with CQL
+```
+
+`docker compose down -v` also deletes the database volume and all saved data.
+
+## Setup
+
+```sh
+nvm install
+nvm use
+corepack enable
+pnpm install
+docker compose up -d --wait scylla
+pnpm dev
+```
+
+If Corepack is unavailable, install the pinned PNPM version with
+`npm install --global pnpm@12.4.2`.
+
+## Commands
+
+```sh
+pnpm dev        # Run both apps with watch mode
+pnpm build      # Build both apps
+pnpm start      # Build and run both apps in production mode
+pnpm lint       # Check lint rules, formatting, and imports with Biome
+pnpm format     # Format with Biome
+pnpm typecheck  # Type-check both apps
+pnpm test       # Run workspace tests through Turbo
+pnpm --filter @repo/backend test # Run API/repository tests
+```
+
+Run an individual app with `pnpm --filter @repo/frontend dev` or
+`pnpm --filter @repo/backend dev`.
+
+The backend defaults to `HOST=127.0.0.1`, `PORT=3001`,
+`SCYLLA_CONTACT_POINTS=127.0.0.1`, and `SCYLLA_LOCAL_DATACENTER=datacenter1`.
+Contact points may be comma-separated. Both development and production backend
+startup require a reachable database. If using `pnpm dev`, start only the Scylla
+Compose service to avoid conflicts with containerized app ports.
+
+To run the real database integration test in addition to the isolated tests:
+
+```sh
+docker compose up -d --wait scylla
+SCYLLA_TEST_CONTACT_POINTS=127.0.0.1 pnpm test
+```
+
+The integration test creates a randomly numbered season, exercises the API,
+checks stored text using a separate database client, and deletes only its own
+season and uploads. It is skipped when `SCYLLA_TEST_CONTACT_POINTS` is unset.
+
+## API
+
+All POST bodies use `Content-Type: application/json`. Unknown input fields are
+rejected. Request bodies are limited to 1 MiB.
+
+### Create a season
+
+```sh
+curl -i http://localhost:3001/seasons \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "seasonNumber": 1,
+    "name": "Season 1",
+    "teams": {
+      "TMA": "Team A",
+      "TMB": "Team B"
+    }
+  }'
+```
+
+Returns `201` with the saved JSON object. The season number must be a positive
+safe integer. Names and team codes must be nonempty, trimmed strings, and at
+least one team is required. An existing season number returns `409` and is not
+overwritten; duplicate protection uses a conditional Scylla insert.
+
+### List seasons
+
+```sh
+curl http://localhost:3001/seasons
+```
+
+Returns `200` with an array ordered by season number, or `[]` when there are no
+seasons. All database pages are read; this simple endpoint has no API pagination.
+
+### Upload match text
+
+```sh
+curl -i http://localhost:3001/seasons/1/matches/upload \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "text": "TMA vs TMB\nPlayer A vs Player B\nScore: 2-0\n\nPlayer A: [https://www.vrpastes.com/tgiS1Swl](https://www.vrpastes.com/tgiS1Swl)\nPlayer B: [https://www.vrpastes.com/VvVArqgO](https://www.vrpastes.com/VvVArqgO)"
+  }'
+```
+
+Returns `201` after persistence succeeds:
+
+```json
+{
+  "uploadId": "05b69234-60e2-42e5-91aa-096bcae239d0",
+  "seasonNumber": 1,
+  "createdAt": "2026-10-14T00:00:00.000Z"
+}
+```
+
+The decoded `text` value is stored unchanged, including whitespace, newlines,
+and Markdown links. Blank text returns `400`; an unknown season returns `404`.
+Each upload creates a separate UUID record. Match parsing, paste retrieval,
+upload retrieval, and frontend forms are intentionally out of scope for now.
+
+Validation failures return `400`, oversized requests return `413`, and database
+failures return `503` with `{ "error": "Database unavailable" }` while details
+are logged on the server.

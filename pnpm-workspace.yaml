@@ -1,0 +1,17 @@
+packages:
+  - app/*
+
+allowBuilds:
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
+
+minimumReleaseAgeExclude:
+  - '@turbo/darwin-64@2.11.8'
+  - '@turbo/darwin-arm64@2.11.8'
+  - '@turbo/linux-64@2.11.8'
+  - '@turbo/linux-arm64@2.11.8'
+  - '@turbo/windows-64@2.11.8'
+  - '@turbo/windows-arm64@2.11.8'
+  - fastify@5.12.7
+  - turbo@2.11.8
