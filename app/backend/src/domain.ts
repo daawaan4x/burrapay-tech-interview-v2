@@ -42,6 +42,63 @@ export interface UploadReceipt {
   readonly createdAt: string;
 }
 
+export interface SavedUpload extends UploadReceipt {
+  readonly text: string;
+}
+
+export const MatchParticipantSchema = Schema.Struct({
+  teamCode: Schema.String,
+  playerName: Schema.String,
+  score: Schema.Number,
+  pasteUrl: Schema.String,
+});
+
+export const MatchParticipantsSchema = Schema.Tuple(
+  MatchParticipantSchema,
+  MatchParticipantSchema,
+);
+
+const PokemonRecordSchema = Schema.Struct({
+  species: Schema.String,
+  nickname: Schema.NullOr(Schema.String),
+  item: Schema.NullOr(Schema.String),
+  ability: Schema.String,
+  moves: Schema.Array(Schema.String),
+});
+
+const ImportedParticipantSchema = Schema.Struct({
+  teamCode: Schema.String,
+  playerName: Schema.String,
+  sourceUrl: Schema.String,
+  rawText: Schema.String,
+  pokemon: Schema.Array(PokemonRecordSchema),
+});
+
+export const ImportedTeamsSchema = Schema.Struct({
+  importedAt: Schema.String,
+  participants: Schema.Tuple(
+    ImportedParticipantSchema,
+    ImportedParticipantSchema,
+  ),
+});
+
+export const MatchSchema = Schema.Struct({
+  matchId: Schema.UUID,
+  uploadId: Schema.UUID,
+  seasonNumber: SeasonSchema.fields.seasonNumber,
+  participants: MatchParticipantsSchema,
+  winnerTeamCode: Schema.String,
+  parsedAt: Schema.String,
+  importedTeams: Schema.NullOr(ImportedTeamsSchema),
+});
+
+export type Match = typeof MatchSchema.Type;
+
+export interface MatchSaveResult {
+  readonly match: Match;
+  readonly created: boolean;
+}
+
 export class InvalidInput extends Data.TaggedError("InvalidInput")<{
   readonly message: string;
 }> {}
@@ -56,4 +113,16 @@ export class SeasonNotFound extends Data.TaggedError("SeasonNotFound")<{
 
 export class DatabaseError extends Data.TaggedError("DatabaseError")<{
   readonly cause: unknown;
+}> {}
+
+export class UploadNotFound extends Data.TaggedError("UploadNotFound")<{
+  readonly uploadId: string;
+}> {}
+
+export class MatchNotFound extends Data.TaggedError("MatchNotFound")<{
+  readonly matchId: string;
+}> {}
+
+export class InvalidMatchText extends Data.TaggedError("InvalidMatchText")<{
+  readonly message: string;
 }> {}
