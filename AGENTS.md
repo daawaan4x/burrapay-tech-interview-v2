@@ -3,6 +3,8 @@
 Read [EXAM.md](./EXAM.md) for the assigned role, API contracts, and assessment
 rules. Read [README.md](./README.md) for setup and conventions.
 
+The current candidate will be taking the Backend Developer Track, skip instructions specific to the Senior Full-Stack Track.
+
 ## Candidate-owned work
 
 The candidate must personally design, write, and debug these pieces without
