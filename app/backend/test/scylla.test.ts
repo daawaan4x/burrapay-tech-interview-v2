@@ -5,11 +5,33 @@ import { Client } from "cassandra-driver";
 import * as Effect from "effect/Effect";
 import { pipe } from "effect/Function";
 import { buildApp } from "../src/app.ts";
-import type { UploadReceipt } from "../src/domain.ts";
-import { openRepository } from "../src/repository.ts";
+import type { Season, UploadReceipt } from "../src/domain.ts";
+import { openRepository, type Repository } from "../src/repository.ts";
+import { makeImportedMatchRecord } from "./matches.fixtures.ts";
 
 const contactPoints = process.env.SCYLLA_TEST_CONTACT_POINTS;
 const localDataCenter = process.env.SCYLLA_LOCAL_DATACENTER ?? "datacenter1";
+
+const integration = { skip: !contactPoints };
+
+const cleanupSeasons = async (client: Client, seasons: readonly number[]) => {
+  const results = await Promise.allSettled(
+    seasons.flatMap((seasonNumber) =>
+      ["matches", "match_uploads", "seasons"].map((table) =>
+        client.execute(
+          `DELETE FROM tournament.${table} WHERE season_number = ?`,
+          [seasonNumber],
+          { prepare: true },
+        ),
+      ),
+    ),
+  );
+  const failures = results.flatMap((result) =>
+    result.status === "rejected" ? [result.reason] : [],
+  );
+  if (failures.length > 0)
+    throw new AggregateError(failures, "Scylla test cleanup failed");
+};
 
 test(
   "Scylla integration: seasons, duplicates, raw uploads, and database readback",
@@ -59,31 +81,17 @@ test(
                 .inject({ method: "POST", url: "/seasons", payload: season })
                 .then((response) => {
                   assert.equal(response.statusCode, 201, response.body);
-                  assert.deepEqual(response.json(), season);
-                  return season;
+                  return response;
                 }),
             ),
             () =>
-              pipe(
-                Effect.promise(() =>
-                  client.execute(
-                    "DELETE FROM tournament.match_uploads WHERE season_number = ?",
-                    [season.seasonNumber],
-                    { prepare: true },
-                  ),
-                ),
-                Effect.andThen(
-                  Effect.promise(() =>
-                    client.execute(
-                      "DELETE FROM tournament.seasons WHERE season_number = ?",
-                      [season.seasonNumber],
-                      { prepare: true },
-                    ),
-                  ),
-                ),
-                Effect.asVoid,
+              Effect.promise(() =>
+                cleanupSeasons(client, [season.seasonNumber]),
               ),
           ),
+        ),
+        Effect.tap(({ savedSeason, season }) =>
+          Effect.sync(() => assert.deepEqual(savedSeason.json(), season)),
         ),
         Effect.tap(({ app, season }) =>
           Effect.promise(() =>
@@ -146,6 +154,7 @@ test(
                 { prepare: true },
               )
               .then((result) => {
+                assert.equal(result.rowLength, 1);
                 assert.equal(result.first().get("raw_text"), text);
                 assert.deepEqual(
                   result.first().get("created_at"),
@@ -159,4 +168,210 @@ test(
         Effect.scoped,
       ),
     ),
+);
+
+interface ScyllaTest {
+  readonly repository: Repository;
+  readonly client: Client;
+  readonly app: ReturnType<typeof buildApp>;
+  readonly createSeason: () => Promise<Season>;
+}
+
+// Only resource setup and ownership are shared; each case supplies its behavior.
+const withScylla = (run: (context: ScyllaTest) => Promise<void>) =>
+  Effect.runPromise(
+    pipe(
+      Effect.Do,
+      Effect.bind("repository", () =>
+        openRepository(
+          (contactPoints ?? "127.0.0.1").split(","),
+          localDataCenter,
+        ),
+      ),
+      Effect.bind("client", () =>
+        pipe(
+          Effect.acquireRelease(
+            Effect.sync(
+              () =>
+                new Client({
+                  contactPoints: (contactPoints ?? "127.0.0.1").split(","),
+                  localDataCenter,
+                }),
+            ),
+            (client) => Effect.promise(() => client.shutdown()),
+          ),
+          Effect.tap((client) => Effect.promise(() => client.connect())),
+        ),
+      ),
+      Effect.bind("ownedSeasons", ({ client }) =>
+        Effect.acquireRelease(
+          Effect.sync<number[]>(() => []),
+          (seasons) => Effect.promise(() => cleanupSeasons(client, seasons)),
+        ),
+      ),
+      Effect.bind("app", ({ repository }) =>
+        Effect.acquireRelease(
+          Effect.sync(() => buildApp(repository, false)),
+          (app) => Effect.promise(() => app.close()),
+        ),
+      ),
+      Effect.flatMap(({ repository, client, app, ownedSeasons }) =>
+        Effect.promise(() =>
+          run({
+            repository,
+            client,
+            app,
+            createSeason: async () => {
+              const season: Season = {
+                seasonNumber: randomInt(1, 2 ** 48 - 1),
+                name: "Integration test season",
+                teams: { TMA: "Team A", TMB: "Team B" },
+              };
+              const response = await app.inject({
+                method: "POST",
+                url: "/seasons",
+                payload: season,
+              });
+              // Register confirmed ownership before any response assertion can fail.
+              if (response.statusCode === 201)
+                ownedSeasons.push(season.seasonNumber);
+              assert.equal(response.statusCode, 201, response.body);
+              assert.deepEqual(response.json(), season);
+              return season;
+            },
+          }),
+        ),
+      ),
+      Effect.scoped,
+    ),
+  );
+
+test("cleanup attempts every owned table and reports failed deletes", async (t) => {
+  const client = new Client({ contactPoints: ["127.0.0.1"], localDataCenter });
+  const cause = new Error("One delete failed");
+  const execute = t.mock.method(client, "execute", (query: string) =>
+    query.includes("match_uploads") ? Promise.reject(cause) : Promise.resolve(),
+  );
+
+  await assert.rejects(cleanupSeasons(client, [7]), (error: unknown) => {
+    assert.ok(error instanceof AggregateError);
+    assert.deepEqual(error.errors, [cause]);
+    return true;
+  });
+  assert.deepEqual(
+    execute.mock.calls.map((call) => call.arguments[0]).sort(),
+    [
+      "DELETE FROM tournament.matches WHERE season_number = ?",
+      "DELETE FROM tournament.match_uploads WHERE season_number = ?",
+      "DELETE FROM tournament.seasons WHERE season_number = ?",
+    ].sort(),
+  );
+});
+
+test(
+  "Scylla storage: overlapping saves return one winning record and preserve it on repeat",
+  integration,
+  () =>
+    withScylla(async ({ repository, client, createSeason }) => {
+      const season = await createSeason();
+      const upload = await Effect.runPromise(
+        repository.saveUpload(season.seasonNumber, "Opaque storage fixture"),
+      );
+      // Already structured setup; no parser, fetch, or live import runs here.
+      const first = {
+        ...makeImportedMatchRecord(),
+        seasonNumber: season.seasonNumber,
+        matchId: upload.uploadId,
+        uploadId: upload.uploadId,
+      };
+      const second = {
+        ...structuredClone(first),
+        parsedAt: "2026-10-19T00:00:00.000Z",
+      };
+      const results = await Effect.runPromise(
+        Effect.all(
+          [repository.saveMatch(first), repository.saveMatch(second)],
+          { concurrency: 2 },
+        ),
+      );
+      assert.equal(results.filter((result) => result.created).length, 1);
+      const winner = results.find((result) => result.created);
+      assert.ok(winner);
+      assert.ok(
+        [first.parsedAt, second.parsedAt].includes(winner.match.parsedAt),
+      );
+      results.forEach((result) => {
+        assert.deepEqual(result.match, winner.match);
+      });
+
+      const stored = await client.execute(
+        "SELECT parsed_at, participants, imported_teams FROM tournament.matches WHERE season_number = ? AND match_id = ?",
+        [season.seasonNumber, upload.uploadId],
+        { prepare: true },
+      );
+      assert.equal(stored.rowLength, 1);
+      assert.deepEqual(
+        stored.first().get("parsed_at"),
+        new Date(winner.match.parsedAt),
+      );
+      assert.deepEqual(
+        JSON.parse(stored.first().get("participants")),
+        makeImportedMatchRecord().participants,
+      );
+      assert.deepEqual(
+        JSON.parse(stored.first().get("imported_teams")),
+        makeImportedMatchRecord().importedTeams,
+      );
+      const repeated = await Effect.runPromise(
+        repository.saveMatch({
+          ...first,
+          importedTeams: null,
+          parsedAt: "2026-10-19T01:00:00.000Z",
+        }),
+      );
+      assert.deepEqual(repeated, { created: false, match: winner.match });
+    }),
+);
+
+test(
+  "Scylla HTTP: saved matches are retrievable only within their season",
+  integration,
+  () =>
+    withScylla(async ({ repository, app, createSeason }) => {
+      const season = await createSeason();
+      const otherSeason = await createSeason();
+      const upload = await Effect.runPromise(
+        repository.saveUpload(season.seasonNumber, "Opaque HTTP fixture"),
+      );
+      const expected = {
+        ...makeImportedMatchRecord(),
+        seasonNumber: season.seasonNumber,
+        matchId: upload.uploadId,
+        uploadId: upload.uploadId,
+      };
+      await Effect.runPromise(repository.saveMatch(structuredClone(expected)));
+
+      const found = await app.inject(
+        `/seasons/${season.seasonNumber}/matches/${upload.uploadId}`,
+      );
+      assert.equal(found.statusCode, 200, found.body);
+      assert.deepEqual(found.json(), expected);
+      const repeated = await app.inject({
+        method: "POST",
+        url: `/seasons/${season.seasonNumber}/matches/uploads/${upload.uploadId}/parse`,
+      });
+      assert.equal(repeated.statusCode, 200, repeated.body);
+      assert.deepEqual(repeated.json(), expected);
+      const wrongMatch = await app.inject(
+        `/seasons/${otherSeason.seasonNumber}/matches/${upload.uploadId}`,
+      );
+      const wrongUpload = await app.inject({
+        method: "POST",
+        url: `/seasons/${otherSeason.seasonNumber}/matches/uploads/${upload.uploadId}/parse`,
+      });
+      assert.equal(wrongMatch.statusCode, 404);
+      assert.equal(wrongUpload.statusCode, 404);
+      assert.equal(typeof wrongMatch.json().error, "string");
+      assert.equal(typeof wrongUpload.json().error, "string");
+    }),
 );

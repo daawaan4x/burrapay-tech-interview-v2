@@ -19,16 +19,24 @@ type ApiError =
   | DatabaseError
   | UploadNotFound
   | MatchNotFound
-  | InvalidMatchText
+  | InvalidMatchText;
 
 export const respond = <A>(
   effect: Effect.Effect<A, ApiError>,
   reply: FastifyReply,
-  status: number,
+  response: number | ((value: A) => { status: number; body: unknown }),
 ) =>
   pipe(
     effect,
-    Effect.map((value) => reply.code(status).send(value)),
+    Effect.flatMap((value) =>
+      Effect.sync(() => {
+        const result =
+          typeof response === "number"
+            ? { status: response, body: value }
+            : response(value);
+        return reply.code(result.status).send(result.body);
+      }),
+    ),
 
     Effect.catchTags({
       InvalidInput: ({ message }) =>

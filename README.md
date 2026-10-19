@@ -3,9 +3,7 @@
 A minimal Turborepo monorepo using Node.js 24, PNPM, TypeScript, and Biome.
 
 See [EXAM.md](./EXAM.md) for the Backend Developer and Senior Full-Stack Developer
-tracks, required tasks, optional work, and submission guidelines. The new
-endpoints and frontend workflow described there are candidate work, not
-implemented features of this scaffold.
+tracks, required tasks, optional work, and submission guidelines.
 
 ## Apps
 
@@ -125,14 +123,18 @@ docker compose up -d --wait scylla
 SCYLLA_TEST_CONTACT_POINTS=127.0.0.1 pnpm test
 ```
 
-The integration test creates a randomly numbered season, exercises the API,
-checks stored text using a separate database client, and deletes only its own
-season and uploads. It is skipped when `SCYLLA_TEST_CONTACT_POINTS` is unset.
+The Scylla cases cover raw-upload readback, concurrent conditional match creation,
+and retrieval under two existing seasons. Each case owns its seasons and closes
+its resources. Cleanup attempts every owned table deletion and reports failures.
+Match setup uses structured fixtures directly; it does not exercise a parser or
+live team import. The three database cases are skipped when
+`SCYLLA_TEST_CONTACT_POINTS` is unset; the isolated cleanup check still runs.
 
 ## API
 
-All POST bodies use `Content-Type: application/json`. Unknown input fields are
-rejected. Request bodies are limited to 1 MiB.
+Use `Content-Type: application/json` when sending JSON. The body limit is 1 MiB.
+Errors use `{ "error": "..." }`. See [EXAM.md](./EXAM.md#shared-api-rules) for
+validation rules and status codes.
 
 ### Create a season
 
@@ -149,10 +151,7 @@ curl -i http://localhost:3001/seasons \
   }'
 ```
 
-Returns `201` with the saved JSON object. The season number must be a positive
-safe integer. Names and team codes must be nonempty, trimmed strings, and at
-least one team is required. An existing season number returns `409` and is not
-overwritten; duplicate protection uses a conditional Scylla insert.
+Returns `201` with the saved season, or `409` if that season already exists.
 
 ### List seasons
 
@@ -160,8 +159,7 @@ overwritten; duplicate protection uses a conditional Scylla insert.
 curl http://localhost:3001/seasons
 ```
 
-Returns `200` with an array ordered by season number, or `[]` when there are no
-seasons. All database pages are read; this simple endpoint has no API pagination.
+Returns `200` with seasons ordered by season number, or `[]` if none exist.
 
 ### Upload match text
 
@@ -183,11 +181,34 @@ Returns `201` after persistence succeeds:
 }
 ```
 
-The decoded `text` value is stored unchanged, including whitespace, newlines,
-and Markdown links. Blank text returns `400`; an unknown season returns `404`.
-Each upload creates a separate UUID record. Match parsing, paste retrieval,
-upload retrieval, and frontend forms are intentionally out of scope for now.
+The original text is stored unchanged. Use the returned `uploadId` in the
+requests below instead of the example UUID.
 
-Validation failures return `400`, oversized requests return `413`, and database
-failures return `503` with `{ "error": "Database unavailable" }` while details
-are logged on the server.
+### Parse a saved upload
+
+```sh
+curl -i -X POST \
+  http://localhost:3001/seasons/1/matches/uploads/05b69234-60e2-42e5-91aa-096bcae239d0/parse
+```
+
+Takes no body. Returns `201` with the parsed match, or `200` with the existing
+match on repeat requests. The match ID equals the upload ID. Repeated requests
+preserve timestamps and imported teams.
+
+Invalid text returns `422` without saving a match. Parsing leaves the upload
+unchanged and does not fetch paste URLs. See the
+[match format and response](./EXAM.md#required-task-1-parse-a-saved-upload-and-retrieve-the-match).
+
+### Retrieve a saved match
+
+```sh
+curl -i \
+  http://localhost:3001/seasons/1/matches/05b69234-60e2-42e5-91aa-096bcae239d0
+```
+
+Returns `200` with the saved [match](./EXAM.md#match-response), or `404` if it
+does not exist in that season.
+
+Storage/HTTP code, supporting tests, and these API/setup notes were AI-assisted.
+The parser, designated manual tests, and personal reflection remain
+candidate-owned. Disclose assisted areas in your submission.

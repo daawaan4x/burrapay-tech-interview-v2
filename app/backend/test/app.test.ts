@@ -26,6 +26,10 @@ const receipt = {
 };
 
 const repository: Repository = {
+  getSeason: () => Effect.succeed(season),
+  getUpload: () => Effect.die("Unexpected upload lookup"),
+  findMatch: () => Effect.succeed(null),
+  saveMatch: () => Effect.die("Unexpected match write"),
   createSeason: (input) => Effect.succeed(input),
   listSeasons: () => Effect.succeed([season]),
   saveUpload: (seasonNumber, rawText) =>
@@ -206,6 +210,7 @@ test("database failures return 503 instead of success or an empty list", (t) => 
   );
   const app = buildApp(
     {
+      ...repository,
       createSeason: () => failure,
       listSeasons: () => failure,
       saveUpload: () => failure,

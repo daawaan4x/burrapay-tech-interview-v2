@@ -53,10 +53,14 @@ export const MatchParticipantSchema = Schema.Struct({
   pasteUrl: Schema.String,
 });
 
+export type MatchParticipant = typeof MatchParticipantSchema.Type;
+
 export const MatchParticipantsSchema = Schema.Tuple(
   MatchParticipantSchema,
   MatchParticipantSchema,
 );
+
+export type MatchParticipants = typeof MatchParticipantsSchema.Type;
 
 const PokemonRecordSchema = Schema.Struct({
   species: Schema.String,

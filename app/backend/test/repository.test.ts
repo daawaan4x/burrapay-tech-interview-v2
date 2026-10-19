@@ -16,7 +16,7 @@ const makeClient = () =>
 
 test("uses an atomic conditional insert for duplicate protection", (t) => {
   const client = makeClient();
-  const execute = t.mock.method(
+  t.mock.method(
     client,
     "execute",
     (query: string, parameters: unknown[], options: QueryOptions) => {
@@ -30,17 +30,22 @@ test("uses an atomic conditional insert for duplicate protection", (t) => {
     makeRepository(client).createSeason(season).pipe(Effect.flip),
   ).then((error) => {
     assert.equal(error._tag, "DuplicateSeason");
-    assert.equal(execute.mock.callCount(), 1);
   });
 });
 
 test("reads every database page and sorts seasons numerically", (t) => {
   const client = makeClient();
-  const execute = t.mock.method(
+  t.mock.method(
     client,
     "execute",
-    (_query: string, _parameters: unknown[], options: QueryOptions) =>
-      Promise.resolve({
+    (query: string, parameters: unknown[], options: QueryOptions) => {
+      assert.match(query, /SELECT.*FROM tournament\.seasons/);
+      assert.deepEqual(parameters, []);
+      assert.equal(options.prepare, true);
+      assert.ok(
+        options.pageState === undefined || options.pageState === "next-page",
+      );
+      return Promise.resolve({
         rows: [
           {
             get: (column: string) =>
@@ -54,7 +59,8 @@ test("reads every database page and sorts seasons numerically", (t) => {
           },
         ],
         pageState: options.pageState ? null : "next-page",
-      }),
+      });
+    },
   );
   return Effect.runPromise(makeRepository(client).listSeasons()).then(
     (seasons) => {
@@ -62,8 +68,6 @@ test("reads every database page and sorts seasons numerically", (t) => {
         seasons.map((entry) => entry.seasonNumber),
         [2, 10],
       );
-      assert.equal(execute.mock.callCount(), 2);
-      assert.equal(execute.mock.calls[1]?.arguments[2]?.pageState, "next-page");
     },
   );
 });
@@ -71,26 +75,24 @@ test("reads every database page and sorts seasons numerically", (t) => {
 test("persists raw text and receipt fields in a prepared upload insert", (t) => {
   const client = makeClient();
   const rawText = "  TMA vs TMB\r\nScore: 2-0\n\nhttps://example.com/\t\n";
-  const execute = t.mock.method(
+  const inserts: unknown[][] = [];
+  t.mock.method(
     client,
     "execute",
     (query: string, parameters: unknown[], options: QueryOptions) => {
       assert.equal(options.prepare, true);
-      return query.startsWith("SELECT")
-        ? Promise.resolve({ rowLength: 1 })
-        : Promise.resolve(assert.equal(parameters[3], rawText));
+      if (query.startsWith("SELECT")) return Promise.resolve({ rowLength: 1 });
+      assert.match(query, /INSERT INTO tournament\.match_uploads/);
+      inserts.push(parameters);
+      return Promise.resolve();
     },
   );
   return Effect.runPromise(makeRepository(client).saveUpload(1, rawText)).then(
     (receipt) => {
       assert.equal(receipt.seasonNumber, 1);
       assert.match(receipt.uploadId, /^[0-9a-f-]{36}$/);
-      const parameters = execute.mock.calls[1]?.arguments[1];
-      assert.deepEqual(parameters, [
-        1,
-        receipt.uploadId,
-        new Date(receipt.createdAt),
-        rawText,
+      assert.deepEqual(inserts, [
+        [1, receipt.uploadId, new Date(receipt.createdAt), rawText],
       ]);
     },
   );
@@ -98,14 +100,15 @@ test("persists raw text and receipt fields in a prepared upload insert", (t) => 
 
 test("does not insert an upload if the season is missing", (t) => {
   const client = makeClient();
-  const execute = t.mock.method(client, "execute", () =>
-    Promise.resolve({ rowLength: 0 }),
-  );
+  t.mock.method(client, "execute", (query: string) => {
+    assert.match(query, /SELECT.*FROM tournament\.seasons/);
+    return Promise.resolve({ rowLength: 0 });
+  });
   return Effect.runPromise(
     makeRepository(client).saveUpload(1, "text").pipe(Effect.flip),
   ).then((error) => {
     assert.equal(error._tag, "SeasonNotFound");
-    assert.equal(execute.mock.callCount(), 1);
+    if (error._tag === "SeasonNotFound") assert.equal(error.seasonNumber, 1);
   });
 });
 
