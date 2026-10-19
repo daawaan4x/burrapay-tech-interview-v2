@@ -1,0 +1,3 @@
+interface:
+  display_name: "Tests"
+  short_description: "Design and review backend tests within exam rules"
