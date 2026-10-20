@@ -18,7 +18,7 @@ const parseName = (name: string) =>
     }),
 
     Effect.filterOrFail(
-      ({ species }) => species.length > 1,
+      ({ species }) => species.length > 0,
       () => invalid("Expected non-empty species name"),
     ),
   );
@@ -99,7 +99,7 @@ const parseMoves = (lines: string[]) =>
   );
 
 const parseNature = (lines: string[]) =>
-  Effect.succeed(lines.filter((line) => line.endsWith("Nature")));
+  Effect.succeed(lines.filter((line) => line.endsWith(" Nature")));
 
 const parsePokemonText = (text: string) =>
   pipe(
