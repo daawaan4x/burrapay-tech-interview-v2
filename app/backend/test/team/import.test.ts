@@ -8,15 +8,15 @@ import {
   type Match,
   PasteTimeout,
   SeasonNotFound,
-} from "../src/domain.ts";
-import { respond } from "../src/http.ts";
-import type { PasteFetch } from "../src/paste-http.ts";
-import type { Repository } from "../src/repository.ts";
-import { makeTestApp } from "./http.helpers.ts";
+} from "../../src/domain.ts";
+import { respond } from "../../src/http.ts";
+import type { PasteFetch } from "../../src/paste-http.ts";
+import type { Repository } from "../../src/repository.ts";
+import { makeTestApp } from "../http.helpers.ts";
 import {
   makeImportedMatchRecord,
   makeMatchRecord,
-} from "./matches.fixtures.ts";
+} from "../matches/fixtures.ts";
 
 const match = makeMatchRecord();
 const url = `/seasons/1/matches/${match.matchId}/teams/import`;
@@ -183,7 +183,7 @@ test("an upstream non-success status maps to 502", async (t) => {
 
 test("raw HTML at the fetch boundary produces a meaningful extraction error", async (t) => {
   const raw = await readFile(
-    new URL("./fixtures/vrpaste-raw.html", import.meta.url),
+    new URL("../fixtures/vrpaste-raw.html", import.meta.url),
   );
   const app = makeImportApp(t, () => Promise.resolve(new Response(raw)));
 
@@ -197,10 +197,10 @@ test("overlapping paste fetches preserve participant order when the second body 
   timeout: 5000,
 }, async (t) => {
   const firstHtml = await readFile(
-    new URL("./fixtures/vrpaste-tgiS1Swl-complete.html", import.meta.url),
+    new URL("../fixtures/vrpaste-tgiS1Swl-complete.html", import.meta.url),
   );
   const secondHtml = await readFile(
-    new URL("./fixtures/vrpaste-VvVArqgO-complete.html", import.meta.url),
+    new URL("../fixtures/vrpaste-VvVArqgO-complete.html", import.meta.url),
   );
   const firstBody = new TransformStream<Uint8Array, Uint8Array>();
   const writer = firstBody.writable.getWriter();
@@ -322,7 +322,7 @@ test("overlapping paste fetches preserve participant order when the second body 
 test("invalid move content in the first paste returns a parser error as 422", async (t) => {
   const html = (
     await readFile(
-      new URL("./fixtures/vrpaste-tgiS1Swl-complete.html", import.meta.url),
+      new URL("../fixtures/vrpaste-tgiS1Swl-complete.html", import.meta.url),
     )
   ).toString();
   const invalid = html.replace(">Muddy Water</span>", "> </span>");
@@ -337,7 +337,7 @@ test("invalid move content in the first paste returns a parser error as 422", as
 
 test("an import write failure returns a sanitized 503", async (t) => {
   const html = await readFile(
-    new URL("./fixtures/vrpaste-tgiS1Swl-complete.html", import.meta.url),
+    new URL("../fixtures/vrpaste-tgiS1Swl-complete.html", import.meta.url),
   );
   const app = makeImportApp(t, () => Promise.resolve(new Response(html)), {
     saveImportedTeams: () =>
@@ -354,7 +354,7 @@ test("an import write failure returns a sanitized 503", async (t) => {
 
 test("import returns the repository result instead of the locally assembled teams", async (t) => {
   const html = await readFile(
-    new URL("./fixtures/vrpaste-tgiS1Swl-complete.html", import.meta.url),
+    new URL("../fixtures/vrpaste-tgiS1Swl-complete.html", import.meta.url),
   );
   const saved = makeImportedMatchRecord();
   const app = makeImportApp(t, () => Promise.resolve(new Response(html)), {

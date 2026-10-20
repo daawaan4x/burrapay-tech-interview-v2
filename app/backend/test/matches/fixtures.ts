@@ -1,4 +1,4 @@
-import type { Match } from "../src/domain.ts";
+import type { Match } from "../../src/domain.ts";
 
 // Synthetic stored records for persistence/HTTP tests only. These are not raw
 // parser inputs or oracles for the candidate's designated manual tests.

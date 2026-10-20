@@ -29,6 +29,9 @@ type ApiError =
   | PasteTimeout
   | PasteExtractionError;
 
+const sendError = (reply: FastifyReply, status: number, message: string) =>
+  Effect.sync(() => reply.code(status).send({ error: message }));
+
 export const respond = <A>(
   effect: Effect.Effect<A, ApiError>,
   reply: FastifyReply,
@@ -68,38 +71,23 @@ export const respond = <A>(
           return reply.code(422).send({ error: message });
         }),
 
-      InvalidInput: ({ message }) =>
-        Effect.sync(() => reply.code(400).send({ error: message })),
+      InvalidInput: ({ message }) => sendError(reply, 400, message),
 
       UploadNotFound: ({ uploadId }) =>
-        Effect.sync(() =>
-          reply.code(404).send({ error: `Upload ${uploadId} not found` }),
-        ),
+        sendError(reply, 404, `Upload ${uploadId} not found`),
 
       MatchNotFound: ({ matchId }) =>
-        Effect.sync(() =>
-          reply.code(404).send({ error: `Match ${matchId} not found` }),
-        ),
+        sendError(reply, 404, `Match ${matchId} not found`),
 
-      InvalidMatchText: ({ message }) =>
-        Effect.sync(() => reply.code(422).send({ error: message })),
+      InvalidMatchText: ({ message }) => sendError(reply, 422, message),
 
-      InvalidTeamText: ({ message }) =>
-        Effect.sync(() => reply.code(422).send({ error: message })),
+      InvalidTeamText: ({ message }) => sendError(reply, 422, message),
 
       DuplicateSeason: ({ seasonNumber }) =>
-        Effect.sync(() =>
-          reply.code(409).send({
-            error: `Season ${seasonNumber} already exists`,
-          }),
-        ),
+        sendError(reply, 409, `Season ${seasonNumber} already exists`),
 
       SeasonNotFound: ({ seasonNumber }) =>
-        Effect.sync(() =>
-          reply.code(404).send({
-            error: `Season ${seasonNumber} not found`,
-          }),
-        ),
+        sendError(reply, 404, `Season ${seasonNumber} not found`),
 
       DatabaseError: ({ cause }) =>
         Effect.sync(() => {

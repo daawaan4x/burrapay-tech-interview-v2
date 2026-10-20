@@ -27,12 +27,12 @@ operations, and test cleanup does not establish application atomicity.
 
 ## Integration setup
 
-Check [scylla.test.ts](../../../../app/backend/test/scylla.test.ts) and
+Check [Scylla helpers](../../../../app/backend/test/scylla/helpers.ts) and
 [compose.yaml](../../../../compose.yaml) before changing setup. Use the
 [README integration commands](../../../../README.md#commands).
 
-- `SCYLLA_TEST_CONTACT_POINTS` enables the integration test; without it, the test
-  is skipped. Contact points are comma-separated.
+- `SCYLLA_TEST_CONTACT_POINTS` enables the integration tests; without it, they
+  are skipped. Contact points are comma-separated.
 - `SCYLLA_LOCAL_DATACENTER` defaults to `datacenter1`. Turbo passes both variables
   through to the backend.
 - `openRepository` creates the fixed `tournament` keyspace and tables if needed.

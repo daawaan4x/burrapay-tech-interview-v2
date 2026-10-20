@@ -2,7 +2,7 @@ import * as Effect from "effect/Effect";
 import { pipe } from "effect/Function";
 import * as Schema from "effect/Schema";
 import type { FastifyPluginAsync } from "fastify";
-import { MatchNotFound, SeasonNumberSchema, UploadSchema } from "../domain.ts";
+import { SeasonNumberSchema, UploadSchema } from "../domain.ts";
 import {
   decode,
   noBodyErrorHandler,
@@ -11,6 +11,7 @@ import {
 } from "../http.ts";
 import { parseMatchText } from "../match-parser.ts";
 import type { Repository } from "../repository.ts";
+import { loadMatch } from "./match.helpers.ts";
 import { type ImportDependencies, teamImportRoutes } from "./team-import.ts";
 
 export const matchRoutes: FastifyPluginAsync<{
@@ -48,14 +49,8 @@ export const matchRoutes: FastifyPluginAsync<{
           Effect.bind("matchId", () =>
             decode(Schema.UUID, request.params.matchId),
           ),
-          Effect.tap(({ seasonNumber }) => repository.getSeason(seasonNumber)),
-          Effect.bind("match", ({ seasonNumber, matchId }) =>
-            repository.findMatch(seasonNumber, matchId),
-          ),
-          Effect.flatMap(({ match, matchId }) =>
-            match
-              ? Effect.succeed(match)
-              : Effect.fail(new MatchNotFound({ matchId })),
+          Effect.flatMap(({ seasonNumber, matchId }) =>
+            loadMatch(repository, seasonNumber, matchId),
           ),
         ),
         reply,

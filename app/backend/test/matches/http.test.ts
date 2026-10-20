@@ -8,14 +8,11 @@ import {
   type Match,
   SeasonNotFound,
   UploadNotFound,
-} from "../src/domain.ts";
-import { respond } from "../src/http.ts";
-import type { Repository } from "../src/repository.ts";
-import { makeTestApp } from "./http.helpers.ts";
-import {
-  makeImportedMatchRecord,
-  makeMatchRecord,
-} from "./matches.fixtures.ts";
+} from "../../src/domain.ts";
+import { respond } from "../../src/http.ts";
+import type { Repository } from "../../src/repository.ts";
+import { makeTestApp } from "../http.helpers.ts";
+import { makeImportedMatchRecord, makeMatchRecord } from "./fixtures.ts";
 
 const { matchId, uploadId, parsedAt } = makeMatchRecord();
 const getUrl = `/seasons/1/matches/${matchId}`;

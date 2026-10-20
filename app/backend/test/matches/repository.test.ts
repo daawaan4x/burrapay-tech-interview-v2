@@ -3,12 +3,13 @@ import { test } from "node:test";
 import { Client, type QueryOptions } from "cassandra-driver";
 import * as Effect from "effect/Effect";
 import * as ParseResult from "effect/ParseResult";
-import { type Match, SeasonNotFound, UploadNotFound } from "../src/domain.ts";
-import { makeRepository } from "../src/repository.ts";
 import {
-  makeImportedMatchRecord,
-  makeMatchRecord,
-} from "./matches.fixtures.ts";
+  type Match,
+  SeasonNotFound,
+  UploadNotFound,
+} from "../../src/domain.ts";
+import { makeRepository } from "../../src/repository.ts";
+import { makeImportedMatchRecord, makeMatchRecord } from "./fixtures.ts";
 
 const makeClient = () =>
   new Client({ contactPoints: ["127.0.0.1"], localDataCenter: "datacenter1" });
@@ -123,6 +124,37 @@ test("a missing upload reports the requested UUID", async (t) => {
   );
   assert.ok(error instanceof UploadNotFound);
   assert.equal(error.uploadId, uploadId);
+});
+
+[
+  {
+    name: "invalid stored upload timestamp",
+    created_at: new Date("invalid"),
+    raw_text: "",
+  },
+  {
+    name: "non-text stored upload",
+    created_at: new Date("2026-10-14T00:00:00.000Z"),
+    raw_text: null,
+  },
+].forEach(({ name, ...stored }) => {
+  test(`${name} reports a database decoding failure`, async (t) => {
+    const client = makeClient();
+    const { uploadId } = makeMatchRecord();
+    const values: Record<string, unknown> = stored;
+    t.mock.method(client, "execute", () =>
+      Promise.resolve({
+        first: () => ({ get: (column: string) => values[column] }),
+      }),
+    );
+
+    const error = await Effect.runPromise(
+      Effect.flip(makeRepository(client).getUpload(1, uploadId)),
+    );
+
+    assert.equal(error._tag, "DatabaseError");
+    assert.ok(ParseResult.isParseError(error.cause));
+  });
 });
 
 test("match creation sends insert fields and decodes driver readback", async (t) => {

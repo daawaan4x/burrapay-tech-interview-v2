@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import * as Effect from "effect/Effect";
-import { InvalidTeamText, type PokemonRecord } from "../src/domain.ts";
-import { parseTeamText } from "../src/team-parser.ts";
+import { InvalidTeamText, type PokemonRecord } from "../../src/domain.ts";
+import { parseTeamText } from "../../src/team-parser.ts";
 
 const minimalTeam = "Pikachu\nAbility: Static\n- Thunderbolt";
 const pikachu: PokemonRecord = {

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { Client } from "cassandra-driver";
+import type { Client, types } from "cassandra-driver";
 import * as Effect from "effect/Effect";
 import { pipe } from "effect/Function";
 import * as Schema from "effect/Schema";
@@ -11,6 +11,21 @@ import {
 } from "../domain.ts";
 import type { Repository } from "../repository.ts";
 import { database, storedTimestamp } from "./scylla.ts";
+
+const storedUpload = Schema.Struct({
+  createdAt: storedTimestamp,
+  text: Schema.String,
+});
+
+const decodeUpload = (row: types.Row, seasonNumber: number, uploadId: string) =>
+  pipe(
+    Schema.decodeUnknown(storedUpload)({
+      createdAt: row.get("created_at"),
+      text: row.get("raw_text"),
+    }),
+    Effect.map((upload) => ({ seasonNumber, uploadId, ...upload })),
+    Effect.mapError((cause) => new DatabaseError({ cause })),
+  );
 
 export const makeUploadRepository = (
   client: Client,
@@ -32,22 +47,7 @@ export const makeUploadRepository = (
           const row = result.first();
 
           return row
-            ? pipe(
-                Effect.Do,
-                Effect.bind("createdAt", () =>
-                  Schema.decodeUnknown(storedTimestamp)(row.get("created_at")),
-                ),
-                Effect.bind("text", () =>
-                  Schema.decodeUnknown(Schema.String)(row.get("raw_text")),
-                ),
-                Effect.map(({ createdAt, text }) => ({
-                  seasonNumber,
-                  uploadId,
-                  createdAt,
-                  text,
-                })),
-                Effect.mapError((cause) => new DatabaseError({ cause })),
-              )
+            ? decodeUpload(row, seasonNumber, uploadId)
             : Effect.fail(new UploadNotFound({ uploadId }));
         },
       ),

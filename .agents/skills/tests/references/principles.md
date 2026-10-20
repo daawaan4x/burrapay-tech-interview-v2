@@ -115,10 +115,10 @@ when choosing or changing fixture data.
 
 ## Node, Fastify, and Effect
 
-The backend runs `tsx --test test/*.test.ts` with `node:test` and
-`node:assert/strict`. Tests belong directly in `app/backend/test` as `*.test.ts`;
-the current glob excludes nested files. Use a different suffix for helpers.
-`tsconfig.test.json` checks both source and tests.
+The backend runs `tsx --test "test/**/*.test.ts"` with `node:test` and
+`node:assert/strict`. Group related tests in `test/matches/`, `test/scylla/`, and
+`test/team/`; keep other tests at `test/`. Helpers use a different suffix.
+`tsconfig.test.json` checks both source and tests recursively.
 
 Use `buildApp` with an injected `Repository` and `app.inject` for HTTP tests.
 Register `app.close()` with `t.after` or a scoped release. Use test-scoped

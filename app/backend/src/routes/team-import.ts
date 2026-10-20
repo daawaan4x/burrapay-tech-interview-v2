@@ -2,7 +2,7 @@ import * as Effect from "effect/Effect";
 import { pipe } from "effect/Function";
 import * as Schema from "effect/Schema";
 import type { FastifyPluginAsync } from "fastify";
-import { type Match, MatchNotFound, SeasonNumberSchema } from "../domain.ts";
+import { type Match, SeasonNumberSchema } from "../domain.ts";
 import {
   decode,
   noBodyErrorHandler,
@@ -13,6 +13,7 @@ import { extractPasteText } from "../paste-html.ts";
 import { fetchPaste, type PasteFetch } from "../paste-http.ts";
 import type { Repository } from "../repository.ts";
 import { parseTeamText } from "../team-parser.ts";
+import { loadMatch } from "./match.helpers.ts";
 
 export interface ImportDependencies {
   readonly fetch: PasteFetch;
@@ -23,20 +24,6 @@ export const defaultImportDependencies: ImportDependencies = {
   fetch: (url, options) => globalThis.fetch(url, options),
   now: () => new Date(),
 };
-
-const loadMatch = (
-  repository: Repository,
-  seasonNumber: number,
-  matchId: string,
-) =>
-  pipe(
-    repository.getSeason(seasonNumber),
-    Effect.flatMap(() => repository.findMatch(seasonNumber, matchId)),
-    Effect.filterOrFail(
-      (match) => match !== null,
-      () => new MatchNotFound({ matchId }),
-    ),
-  );
 
 const importParticipant = (
   participant: Match["participants"][number],

@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Client, type QueryOptions } from "cassandra-driver";
 import * as Effect from "effect/Effect";
-import type { ImportedTeams } from "../src/domain.ts";
-import { makeRepository } from "../src/repository.ts";
-import { makeImportedMatchRecord } from "./matches.fixtures.ts";
+import type { ImportedTeams } from "../../src/domain.ts";
+import { makeRepository } from "../../src/repository.ts";
+import { makeImportedMatchRecord } from "../matches/fixtures.ts";
 
 const clientForTest = () =>
   new Client({ contactPoints: ["127.0.0.1"], localDataCenter: "datacenter1" });

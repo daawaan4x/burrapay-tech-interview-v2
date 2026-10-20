@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import * as Effect from "effect/Effect";
-import { InvalidMatchText } from "../src/domain.ts";
-import { parseMatchText } from "../src/match-parser.ts";
+import { InvalidMatchText } from "../../src/domain.ts";
+import { parseMatchText } from "../../src/match-parser.ts";
 
 export const seasonTeams = {
   TMA: "Team A",
