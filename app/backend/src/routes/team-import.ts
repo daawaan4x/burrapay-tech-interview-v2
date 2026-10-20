@@ -69,7 +69,7 @@ const importTeams = (
         importParticipant(match.participants[0], dependencies.fetch),
         importParticipant(match.participants[1], dependencies.fetch),
       ],
-      { concurrency: 1 },
+      { concurrency: 2 },
     ),
     Effect.bindTo("participants"),
     Effect.bind("importedAt", () =>
