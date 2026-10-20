@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { Readable } from "node:stream";
 import { type TestContext, test } from "node:test";
 import * as Effect from "effect/Effect";
-import { buildApp } from "../src/app.ts";
 import {
   DatabaseError,
   InvalidMatchText,
@@ -12,6 +11,7 @@ import {
 } from "../src/domain.ts";
 import { respond } from "../src/http.ts";
 import type { Repository } from "../src/repository.ts";
+import { makeTestApp } from "./http.helpers.ts";
 import {
   makeImportedMatchRecord,
   makeMatchRecord,
@@ -21,33 +21,24 @@ const { matchId, uploadId, parsedAt } = makeMatchRecord();
 const getUrl = `/seasons/1/matches/${matchId}`;
 const parseUrl = `/seasons/1/matches/uploads/${uploadId}/parse`;
 
-const repository: Repository = {
-  createSeason: () => Effect.die("Unexpected season write"),
-  listSeasons: () => Effect.die("Unexpected season list"),
-  saveUpload: () => Effect.die("Unexpected upload write"),
-  getSeason: () =>
-    Effect.succeed({
-      seasonNumber: 1,
-      name: "Season 1",
-      teams: { TMA: "Team A", TMB: "Team B" },
-    }),
-  getUpload: () =>
-    Effect.succeed({
-      seasonNumber: 1,
-      uploadId,
-      createdAt: parsedAt,
-      text: "Uninterpreted storage fixture",
-    }),
-  findMatch: () => Effect.succeed(makeImportedMatchRecord()),
-  saveMatch: () => Effect.die("Unexpected match write"),
-  health: () => Effect.void,
-};
-
-const makeApp = (t: TestContext, overrides: Partial<Repository> = {}) => {
-  const app = buildApp({ ...repository, ...overrides }, false);
-  t.after(() => app.close());
-  return app;
-};
+const makeApp = (t: TestContext, overrides: Partial<Repository> = {}) =>
+  makeTestApp(t, {
+    getSeason: () =>
+      Effect.succeed({
+        seasonNumber: 1,
+        name: "Season 1",
+        teams: { TMA: "Team A", TMB: "Team B" },
+      }),
+    getUpload: () =>
+      Effect.succeed({
+        seasonNumber: 1,
+        uploadId,
+        createdAt: parsedAt,
+        text: "Uninterpreted storage fixture",
+      }),
+    findMatch: () => Effect.succeed(makeImportedMatchRecord()),
+    ...overrides,
+  });
 
 const storedMatchRequests = [
   ["GET returns the complete stored record", "GET", getUrl],

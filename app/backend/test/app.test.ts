@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { type TestContext, test } from "node:test";
 import * as Effect from "effect/Effect";
-import { buildApp } from "../src/app.ts";
 import {
   DatabaseError,
   DuplicateSeason,
@@ -9,6 +8,7 @@ import {
   SeasonNotFound,
 } from "../src/domain.ts";
 import type { Repository } from "../src/repository.ts";
+import { makeTestApp } from "./http.helpers.ts";
 
 const season: Season = {
   seasonNumber: 1,
@@ -25,25 +25,21 @@ const receipt = {
   createdAt: "2026-10-14T00:00:00.000Z",
 };
 
-const repository: Repository = {
-  getSeason: () => Effect.succeed(season),
-  getUpload: () => Effect.die("Unexpected upload lookup"),
-  findMatch: () => Effect.succeed(null),
-  saveMatch: () => Effect.die("Unexpected match write"),
-  createSeason: (input) => Effect.succeed(input),
-  listSeasons: () => Effect.succeed([season]),
-  saveUpload: (seasonNumber, rawText) =>
-    Effect.sync(() => {
-      assert.equal(seasonNumber, 1);
-      assert.equal(rawText, text);
-      return receipt;
-    }),
-  health: () => Effect.void,
-};
+const makeApp = (t: TestContext, overrides: Partial<Repository> = {}) =>
+  makeTestApp(t, {
+    createSeason: (input) => Effect.succeed(input),
+    listSeasons: () => Effect.succeed([season]),
+    saveUpload: (seasonNumber, rawText) =>
+      Effect.sync(() => {
+        assert.equal(seasonNumber, 1);
+        assert.equal(rawText, text);
+        return receipt;
+      }),
+    ...overrides,
+  });
 
 test("preserves the existing root endpoint", (t) => {
-  const app = buildApp(repository, false);
-  t.after(() => app.close());
+  const app = makeApp(t);
   return app.inject("/").then((response) => {
     assert.equal(response.statusCode, 200);
     assert.deepEqual(response.json(), { message: "Hello from Fastify" });
@@ -51,8 +47,7 @@ test("preserves the existing root endpoint", (t) => {
 });
 
 test("creates and lists seasons using the agreed JSON shape", (t) => {
-  const app = buildApp(repository, false);
-  t.after(() => app.close());
+  const app = makeApp(t);
   return app
     .inject({ method: "POST", url: "/seasons", payload: season })
     .then((response) => {
@@ -67,14 +62,9 @@ test("creates and lists seasons using the agreed JSON shape", (t) => {
 });
 
 test("reports duplicate seasons without overwriting them", (t) => {
-  const app = buildApp(
-    {
-      ...repository,
-      createSeason: () => Effect.fail(new DuplicateSeason({ seasonNumber: 1 })),
-    },
-    false,
-  );
-  t.after(() => app.close());
+  const app = makeApp(t, {
+    createSeason: () => Effect.fail(new DuplicateSeason({ seasonNumber: 1 })),
+  });
   return app
     .inject({ method: "POST", url: "/seasons", payload: season })
     .then((response) => {
@@ -84,8 +74,7 @@ test("reports duplicate seasons without overwriting them", (t) => {
 });
 
 test("saves decoded upload text exactly, including line endings and links", (t) => {
-  const app = buildApp(repository, false);
-  t.after(() => app.close());
+  const app = makeApp(t);
   return app
     .inject({
       method: "POST",
@@ -99,15 +88,10 @@ test("saves decoded upload text exactly, including line endings and links", (t) 
 });
 
 test("rejects uploads for an unknown season", (t) => {
-  const app = buildApp(
-    {
-      ...repository,
-      saveUpload: (seasonNumber) =>
-        Effect.fail(new SeasonNotFound({ seasonNumber })),
-    },
-    false,
-  );
-  t.after(() => app.close());
+  const app = makeApp(t, {
+    saveUpload: (seasonNumber) =>
+      Effect.fail(new SeasonNotFound({ seasonNumber })),
+  });
   return app
     .inject({
       method: "POST",
@@ -137,14 +121,9 @@ const invalidSeasons = [
 
 invalidSeasons.map((payload, index) =>
   test(`rejects invalid season input ${index + 1} before persistence`, (t) => {
-    const app = buildApp(
-      {
-        ...repository,
-        createSeason: () => Effect.die("Invalid input reached persistence"),
-      },
-      false,
-    );
-    t.after(() => app.close());
+    const app = makeApp(t, {
+      createSeason: () => Effect.die("Invalid input reached persistence"),
+    });
     return app
       .inject({ method: "POST", url: "/seasons", payload })
       .then((response) => {
@@ -168,14 +147,9 @@ const invalidUploads = [
 
 invalidUploads.map(({ url, payload }, index) =>
   test(`rejects invalid upload input ${index + 1} before persistence`, (t) => {
-    const app = buildApp(
-      {
-        ...repository,
-        saveUpload: () => Effect.die("Invalid input reached persistence"),
-      },
-      false,
-    );
-    t.after(() => app.close());
+    const app = makeApp(t, {
+      saveUpload: () => Effect.die("Invalid input reached persistence"),
+    });
     return app.inject({ method: "POST", url, payload }).then((response) => {
       assert.equal(response.statusCode, 400);
       assert.equal(typeof response.json().error, "string");
@@ -184,8 +158,7 @@ invalidUploads.map(({ url, payload }, index) =>
 );
 
 test("handles malformed JSON and enforces the body limit", (t) => {
-  const app = buildApp(repository, false);
-  t.after(() => app.close());
+  const app = makeApp(t);
   return app
     .inject({
       method: "POST",
@@ -208,17 +181,12 @@ test("database failures return 503 instead of success or an empty list", (t) => 
   const failure = Effect.fail(
     new DatabaseError({ cause: new Error("Database offline") }),
   );
-  const app = buildApp(
-    {
-      ...repository,
-      createSeason: () => failure,
-      listSeasons: () => failure,
-      saveUpload: () => failure,
-      health: () => failure,
-    },
-    false,
-  );
-  t.after(() => app.close());
+  const app = makeApp(t, {
+    createSeason: () => failure,
+    listSeasons: () => failure,
+    saveUpload: () => failure,
+    health: () => failure,
+  });
   return Promise.all(
     [
       { method: "POST" as const, url: "/seasons", payload: season },

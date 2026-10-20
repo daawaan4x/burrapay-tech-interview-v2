@@ -33,143 +33,6 @@ const cleanupSeasons = async (client: Client, seasons: readonly number[]) => {
     throw new AggregateError(failures, "Scylla test cleanup failed");
 };
 
-test(
-  "Scylla integration: seasons, duplicates, raw uploads, and database readback",
-  { skip: !contactPoints },
-  () =>
-    Effect.runPromise(
-      pipe(
-        Effect.Do,
-        Effect.bind("repository", () =>
-          openRepository(
-            (contactPoints ?? "127.0.0.1").split(","),
-            localDataCenter,
-          ),
-        ),
-        Effect.bind("client", () =>
-          pipe(
-            Effect.acquireRelease(
-              Effect.sync(
-                () =>
-                  new Client({
-                    contactPoints: (contactPoints ?? "127.0.0.1").split(","),
-                    localDataCenter,
-                  }),
-              ),
-              (client) => Effect.promise(() => client.shutdown()),
-            ),
-            Effect.tap((client) => Effect.promise(() => client.connect())),
-          ),
-        ),
-        Effect.bind("app", ({ repository }) =>
-          Effect.acquireRelease(
-            Effect.sync(() => buildApp(repository, false)),
-            (app) => Effect.promise(() => app.close()),
-          ),
-        ),
-        Effect.bind("season", () =>
-          Effect.sync(() => ({
-            seasonNumber: randomInt(1, 2 ** 48 - 1),
-            name: "Integration test season",
-            teams: { TMA: "Team A", TMB: "Team B" },
-          })),
-        ),
-        Effect.bind("savedSeason", ({ app, client, season }) =>
-          Effect.acquireRelease(
-            Effect.promise(() =>
-              app
-                .inject({ method: "POST", url: "/seasons", payload: season })
-                .then((response) => {
-                  assert.equal(response.statusCode, 201, response.body);
-                  return response;
-                }),
-            ),
-            () =>
-              Effect.promise(() =>
-                cleanupSeasons(client, [season.seasonNumber]),
-              ),
-          ),
-        ),
-        Effect.tap(({ savedSeason, season }) =>
-          Effect.sync(() => assert.deepEqual(savedSeason.json(), season)),
-        ),
-        Effect.tap(({ app, season }) =>
-          Effect.promise(() =>
-            app
-              .inject({
-                method: "POST",
-                url: "/seasons",
-                payload: { ...season, name: "Must not overwrite" },
-              })
-              .then((response) => assert.equal(response.statusCode, 409)),
-          ),
-        ),
-        Effect.tap(({ app, season }) =>
-          Effect.promise(() =>
-            app.inject("/seasons").then((response) => {
-              assert.equal(response.statusCode, 200);
-              const seasons =
-                response.json<
-                  {
-                    seasonNumber: number;
-                    name: string;
-                    teams: Record<string, string>;
-                  }[]
-                >();
-              assert.deepEqual(
-                seasons.find(
-                  (entry) => entry.seasonNumber === season.seasonNumber,
-                ),
-                season,
-              );
-            }),
-          ),
-        ),
-        Effect.bind("text", () =>
-          Effect.succeed(
-            "  TMA vs TMB\r\nPlayer A vs Player B\nScore: 2-0\n\nPlayer A: [https://www.vrpastes.com/tgiS1Swl](https://www.vrpastes.com/tgiS1Swl)\nPlayer B: [https://www.vrpastes.com/VvVArqgO](https://www.vrpastes.com/VvVArqgO)\n",
-          ),
-        ),
-        Effect.bind("receipt", ({ app, season, text }) =>
-          Effect.promise(() =>
-            app
-              .inject({
-                method: "POST",
-                url: `/seasons/${season.seasonNumber}/matches/upload`,
-                payload: { text },
-              })
-              .then((response) => {
-                assert.equal(response.statusCode, 201, response.body);
-                return response.json<UploadReceipt>();
-              }),
-          ),
-        ),
-        Effect.tap(({ client, season, receipt, text }) =>
-          Effect.promise(() =>
-            client
-              .execute(
-                `SELECT raw_text, created_at FROM tournament.match_uploads
-                 WHERE season_number = ? AND upload_id = ?`,
-                [season.seasonNumber, receipt.uploadId],
-                { prepare: true },
-              )
-              .then((result) => {
-                assert.equal(result.rowLength, 1);
-                assert.equal(result.first().get("raw_text"), text);
-                assert.deepEqual(
-                  result.first().get("created_at"),
-                  new Date(receipt.createdAt),
-                );
-                assert.equal(receipt.seasonNumber, season.seasonNumber);
-              }),
-          ),
-        ),
-        Effect.asVoid,
-        Effect.scoped,
-      ),
-    ),
-);
-
 interface ScyllaTest {
   readonly repository: Repository;
   readonly client: Client;
@@ -245,6 +108,54 @@ const withScylla = (run: (context: ScyllaTest) => Promise<void>) =>
       Effect.scoped,
     ),
   );
+
+test(
+  "Scylla integration: seasons, duplicates, raw uploads, and database readback",
+  integration,
+  () =>
+    withScylla(async ({ app, client, createSeason }) => {
+      const season = await createSeason();
+      const duplicate = await app.inject({
+        method: "POST",
+        url: "/seasons",
+        payload: { ...season, name: "Must not overwrite" },
+      });
+      assert.equal(duplicate.statusCode, 409);
+
+      const listed = await app.inject("/seasons");
+      assert.equal(listed.statusCode, 200);
+      assert.deepEqual(
+        listed
+          .json<Season[]>()
+          .find((entry) => entry.seasonNumber === season.seasonNumber),
+        season,
+      );
+
+      const text =
+        "  TMA vs TMB\r\nPlayer A vs Player B\nScore: 2-0\n\nPlayer A: [https://www.vrpastes.com/tgiS1Swl](https://www.vrpastes.com/tgiS1Swl)\nPlayer B: [https://www.vrpastes.com/VvVArqgO](https://www.vrpastes.com/VvVArqgO)\n";
+      const uploaded = await app.inject({
+        method: "POST",
+        url: `/seasons/${season.seasonNumber}/matches/upload`,
+        payload: { text },
+      });
+      assert.equal(uploaded.statusCode, 201, uploaded.body);
+      const receipt = uploaded.json<UploadReceipt>();
+
+      const stored = await client.execute(
+        `SELECT raw_text, created_at FROM tournament.match_uploads
+         WHERE season_number = ? AND upload_id = ?`,
+        [season.seasonNumber, receipt.uploadId],
+        { prepare: true },
+      );
+      assert.equal(stored.rowLength, 1);
+      assert.equal(stored.first().get("raw_text"), text);
+      assert.deepEqual(
+        stored.first().get("created_at"),
+        new Date(receipt.createdAt),
+      );
+      assert.equal(receipt.seasonNumber, season.seasonNumber);
+    }),
+);
 
 test("cleanup attempts every owned table and reports failed deletes", async (t) => {
   const client = new Client({ contactPoints: ["127.0.0.1"], localDataCenter });
