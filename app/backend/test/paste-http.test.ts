@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
 import * as Fiber from "effect/Fiber";
 import { pipe } from "effect/Function";
 import * as Option from "effect/Option";
@@ -10,6 +11,48 @@ import * as TestContext from "effect/TestContext";
 import { fetchPaste } from "../src/paste-http.ts";
 
 const url = "https://www.vrpastes.com/Ab12";
+
+["headers", "body"].forEach((stage) => {
+  test(`caller interruption aborts stalled ${stage} and releases its resources`, {
+    timeout: 5000,
+  }, async (t) => {
+    let started: () => void = () => undefined;
+    const ready = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    let signal: AbortSignal | undefined;
+    let cancelled = false;
+    const body = new ReadableStream<Uint8Array>(
+      {
+        pull: () => started(),
+        cancel: () => {
+          cancelled = true;
+        },
+      },
+      { highWaterMark: 0 },
+    );
+    const fiber = Effect.runFork(
+      fetchPaste(url, (_url, options) => {
+        signal = options.signal;
+        if (stage === "body") return Promise.resolve(new Response(body));
+
+        started();
+        return new Promise<Response>(() => {});
+      }),
+    );
+    t.after(() => Effect.runPromise(Fiber.interrupt(fiber)));
+
+    await ready;
+    assert.equal(signal?.aborted, false);
+
+    const exit = await Effect.runPromise(Fiber.interrupt(fiber));
+
+    assert.ok(Exit.isInterrupted(exit));
+    assert.equal(signal?.aborted, true);
+    assert.equal(body.locked, false);
+    assert.equal(cancelled, stage === "body");
+  });
+});
 
 test("fetching preserves body bytes, uses manual redirects, and releases resources", async () => {
   let signal: AbortSignal | undefined;

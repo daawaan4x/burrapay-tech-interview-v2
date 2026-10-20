@@ -58,7 +58,7 @@ const parsePlayer = (text: string) =>
   );
 
 const SCORE_PATTERN = /^Score: +(\d+) *- *(\d+)$/;
-const POSSIBLE_SCORES = ["2-0","2-1","1-2","0-2"];
+const POSSIBLE_SCORES = ["2-0", "2-1", "1-2", "0-2"];
 const parseScore = (text: string) =>
   pipe(
     Effect.fromNullable(SCORE_PATTERN.exec(text)),
@@ -85,9 +85,9 @@ const PASTE_URL_PATTERN = /^https:\/\/www\.vrpastes\.com\/[a-zA-Z0-9]+$/;
 const parsePlayerLink = (text: string, playerName: string) =>
   pipe(
     Effect.succeed(text),
-    Effect.map(text => {
-      const [first, ...rest] = text.split(`${playerName}:`)
-      return [first, rest.join().trim()]
+    Effect.map((text) => {
+      const [first, ...rest] = text.split(`${playerName}:`);
+      return [first, rest.join().trim()];
     }),
     Effect.filterOrFail(
       ([a, b]) => a === "" && b.length > 0,
@@ -106,10 +106,10 @@ export const parseMatchText = (text: string, teams: Season["teams"]) =>
   pipe(
     Effect.Do,
     Effect.bind("lines", () => parseLines(text)),
-		Effect.filterOrFail(
-			({ lines }) => lines[3] !== lines[4],
-			() => invalid("Expected different player lines")
-		),
+    Effect.filterOrFail(
+      ({ lines }) => lines[3] !== lines[4],
+      () => invalid("Expected different player lines"),
+    ),
 
     Effect.bind("teamCodes", ({ lines }) => parseTeamCodes(lines[0], teams)),
     Effect.bind("playerNames", ({ lines }) => parsePlayer(lines[1])),
@@ -141,12 +141,14 @@ export const parseMatchText = (text: string, teams: Season["teams"]) =>
     })),
   );
 
-export const serializeMatch = ([a, b]: MatchParticipants) => 
-  Effect.succeed(() => `
+export const serializeMatch = ([a, b]: MatchParticipants) =>
+  Effect.succeed(() =>
+    `
 ${a.teamCode} vs ${b.teamCode}
 ${a.playerName} vs ${b.playerName}
 Score: ${a.score}-${b.score}
 
 ${a.playerName}: ${a.pasteUrl}
 ${b.playerName}: ${b.pasteUrl}
-`.trim())
+`.trim(),
+  );

@@ -193,7 +193,7 @@ test("raw HTML at the fetch boundary produces a meaningful extraction error", as
   assert.match(response.json().error, /extract team text/);
 });
 
-test("complete HTML imports sequentially, preserves extracted text, and supports GET and repeat", {
+test("overlapping paste fetches preserve participant order when the second body finishes first", {
   timeout: 5000,
 }, async (t) => {
   const firstHtml = await readFile(
@@ -205,11 +205,9 @@ test("complete HTML imports sequentially, preserves extracted text, and supports
   const firstBody = new TransformStream<Uint8Array, Uint8Array>();
   const writer = firstBody.writable.getWriter();
   t.after(() => writer.abort());
-
-  const responses = [
-    new Response(firstBody.readable),
-    new Response(secondHtml),
-  ];
+  const secondBody = new TransformStream<Uint8Array, Uint8Array>();
+  const secondWriter = secondBody.writable.getWriter();
+  t.after(() => secondWriter.abort());
   const requested: string[] = [];
   let saved = makeMatchRecord();
   let timestamps = 0;
@@ -231,7 +229,17 @@ test("complete HTML imports sequentially, preserves extracted text, and supports
       fetch: (input) => {
         requested.push(input);
 
-        return Promise.resolve(responses[requested.length - 1]);
+        assert.ok(
+          match.participants.some(({ pasteUrl }) => pasteUrl === input),
+        );
+
+        return Promise.resolve(
+          new Response(
+            input.endsWith("/tgiS1Swl")
+              ? firstBody.readable
+              : secondBody.readable,
+          ),
+        );
       },
       now: () => {
         timestamps += 1;
@@ -250,8 +258,15 @@ test("complete HTML imports sequentially, preserves extracted text, and supports
     ),
   );
 
-  // Consuming a chunk must not start the next request before this body ends.
-  assert.deepEqual(requested, ["https://www.vrpastes.com/tgiS1Swl"]);
+  await secondWriter.write(secondHtml);
+  await secondWriter.close();
+
+  assert.deepEqual(requested, [
+    "https://www.vrpastes.com/tgiS1Swl",
+    "https://www.vrpastes.com/VvVArqgO",
+  ]);
+  assert.equal(saved.importedTeams, null);
+  assert.equal(timestamps, 0);
 
   await writer.close();
 
