@@ -1,13 +1,17 @@
 import * as Effect from "effect/Effect";
 import { pipe } from "effect/Function";
 import * as Schema from "effect/Schema";
-import type { FastifyReply } from "fastify";
+import type { FastifyInstance, FastifyReply, RouteOptions } from "fastify";
 import {
+  type CandidateWorkPending,
   type DatabaseError,
   type DuplicateSeason,
   InvalidInput,
   type InvalidMatchText,
   type MatchNotFound,
+  type PasteExtractionError,
+  type PasteRequestError,
+  type PasteTimeout,
   type SeasonNotFound,
   type UploadNotFound,
 } from "./domain.ts";
@@ -19,7 +23,11 @@ type ApiError =
   | DatabaseError
   | UploadNotFound
   | MatchNotFound
-  | InvalidMatchText;
+  | InvalidMatchText
+  | PasteRequestError
+  | PasteTimeout
+  | PasteExtractionError
+  | CandidateWorkPending;
 
 export const respond = <A>(
   effect: Effect.Effect<A, ApiError>,
@@ -39,6 +47,34 @@ export const respond = <A>(
     ),
 
     Effect.catchTags({
+      PasteRequestError: ({ message, cause }) =>
+        Effect.sync(() => {
+          reply.log.error({ err: cause, message }, "Paste request failed");
+
+          return reply.code(502).send({ error: message });
+        }),
+
+      PasteTimeout: () =>
+        Effect.sync(() => {
+          reply.log.warn("Paste request exceeded 10 seconds");
+
+          return reply.code(504).send({ error: "Paste request timed out" });
+        }),
+
+      PasteExtractionError: ({ message, cause }) =>
+        Effect.sync(() => {
+          reply.log.info({ err: cause }, "Paste extraction failed");
+
+          return reply.code(422).send({ error: message });
+        }),
+
+      CandidateWorkPending: () =>
+        Effect.sync(() =>
+          reply.code(501).send({
+            error: "Team-text parsing is not implemented yet",
+          }),
+        ),
+
       InvalidInput: ({ message }) =>
         Effect.sync(() => reply.code(400).send({ error: message })),
 
@@ -70,14 +106,11 @@ export const respond = <A>(
         ),
 
       DatabaseError: ({ cause }) =>
-        pipe(
-          Effect.sync(() =>
-            reply.log.error({ err: cause }, "Database operation failed"),
-          ),
-          Effect.map(() =>
-            reply.code(503).send({ error: "Database unavailable" }),
-          ),
-        ),
+        Effect.sync(() => {
+          reply.log.error({ err: cause }, "Database operation failed");
+
+          return reply.code(503).send({ error: "Database unavailable" });
+        }),
     }),
     Effect.runPromise,
   );
@@ -87,3 +120,27 @@ export const decode = <A, I>(schema: Schema.Schema<A, I>, input: unknown) =>
     Schema.decodeUnknown(schema, { onExcessProperty: "error" })(input),
     Effect.mapError((error) => new InvalidInput({ message: error.message })),
   );
+
+const noBodyMessage = "This endpoint takes no request body";
+
+export const registerNoBodyParser = (app: FastifyInstance) => {
+  app.removeAllContentTypeParsers();
+
+  app.addContentTypeParser(
+    "*",
+    { parseAs: "buffer", bodyLimit: 1 },
+    (_request, body, done) =>
+      body.length === 0
+        ? done(null, undefined)
+        : done(new InvalidInput({ message: noBodyMessage })),
+  );
+};
+
+export const noBodyErrorHandler: RouteOptions["errorHandler"] = (
+  error,
+  _request,
+  reply,
+) =>
+  error instanceof InvalidInput || error.code === "FST_ERR_CTP_BODY_TOO_LARGE"
+    ? reply.code(400).send({ error: noBodyMessage })
+    : reply.send(error);

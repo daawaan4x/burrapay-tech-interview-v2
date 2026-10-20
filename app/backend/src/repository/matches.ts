@@ -5,6 +5,7 @@ import * as Schema from "effect/Schema";
 import {
   DatabaseError,
   ImportedTeamsSchema,
+  MatchNotFound,
   MatchParticipantsSchema,
   MatchSchema,
 } from "../domain.ts";
@@ -55,9 +56,40 @@ const readMatch = (client: Client, seasonNumber: number, matchId: string) =>
 
 export const makeMatchRepository = (
   client: Client,
-): Pick<Repository, "findMatch" | "saveMatch"> => ({
+): Pick<Repository, "findMatch" | "saveMatch" | "saveImportedTeams"> => ({
   findMatch: (seasonNumber, matchId) =>
     readMatch(client, seasonNumber, matchId),
+
+  saveImportedTeams: (seasonNumber, matchId, importedTeams) =>
+    pipe(
+      Schema.encode(Schema.parseJson(ImportedTeamsSchema))(importedTeams),
+      Effect.mapError((cause) => new DatabaseError({ cause })),
+
+      Effect.tap((encoded) =>
+        database(() =>
+          client.execute(
+            `UPDATE tournament.matches SET imported_teams = ?
+             WHERE season_number = ? AND match_id = ?
+             IF imported_teams = null AND upload_id != null`,
+            [encoded, seasonNumber, matchId],
+            { prepare: true },
+          ),
+        ),
+      ),
+      Effect.flatMap(() => readMatch(client, seasonNumber, matchId)),
+
+      Effect.filterOrFail(
+        (saved) => saved !== null,
+        () => new MatchNotFound({ matchId }),
+      ),
+      Effect.filterOrFail(
+        (saved) => saved.importedTeams !== null,
+        () =>
+          new DatabaseError({
+            cause: new Error("Import missing after conditional update"),
+          }),
+      ),
+    ),
 
   saveMatch: (match) =>
     pipe(

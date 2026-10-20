@@ -2,19 +2,21 @@ import * as Effect from "effect/Effect";
 import { pipe } from "effect/Function";
 import * as Schema from "effect/Schema";
 import type { FastifyPluginAsync } from "fastify";
+import { MatchNotFound, SeasonNumberSchema, UploadSchema } from "../domain.ts";
 import {
-  InvalidInput,
-  MatchNotFound,
-  SeasonNumberSchema,
-  UploadSchema,
-} from "../domain.ts";
-import { decode, respond } from "../http.ts";
+  decode,
+  noBodyErrorHandler,
+  registerNoBodyParser,
+  respond,
+} from "../http.ts";
 import { parseMatchText } from "../match-parser.ts";
 import type { Repository } from "../repository.ts";
+import { type ImportDependencies, teamImportRoutes } from "./team-import.ts";
 
 export const matchRoutes: FastifyPluginAsync<{
   repository: Repository;
-}> = async (app, { repository }) => {
+  dependencies: ImportDependencies;
+}> = async (app, { repository, dependencies }) => {
   app.post<{ Params: { seasonNumber: string } }>(
     "/seasons/:seasonNumber/matches/upload",
     (request, reply) =>
@@ -62,37 +64,18 @@ export const matchRoutes: FastifyPluginAsync<{
   );
 
   app.register(parseUploadRoutes, { repository });
+  app.register(teamImportRoutes, { repository, dependencies });
 };
-
-const noBodyMessage = "This endpoint takes no request body";
 
 const parseUploadRoutes: FastifyPluginAsync<{
   repository: Repository;
 }> = async (app, { repository }) => {
-  // Keep uploads' JSON parser intact. Only an empty body is valid here.
-  app.removeAllContentTypeParsers();
-  app.addContentTypeParser(
-    "*",
-    // Check first byte without buffering whole request.
-    { parseAs: "buffer", bodyLimit: 1 },
-    (_request, body, done) =>
-      body.length === 0
-        ? done(null, undefined)
-        : done(new InvalidInput({ message: noBodyMessage })),
-  );
+  registerNoBodyParser(app);
 
   app.post<{ Params: { seasonNumber: string; uploadId: string } }>(
     "/seasons/:seasonNumber/matches/uploads/:uploadId/parse",
     {
-      errorHandler: (error, _request, reply) => {
-        if (
-          error instanceof InvalidInput ||
-          error.code === "FST_ERR_CTP_BODY_TOO_LARGE"
-        ) {
-          return reply.code(400).send({ error: noBodyMessage });
-        }
-        return reply.send(error);
-      },
+      errorHandler: noBodyErrorHandler,
     },
     (request, reply) =>
       respond(

@@ -5,6 +5,7 @@ import * as Exit from "effect/Exit";
 import { pipe } from "effect/Function";
 import { buildApp } from "./app.ts";
 import { openRepository } from "./repository.ts";
+import { defaultImportDependencies } from "./routes/team-import.ts";
 
 const configuration = Config.all({
   port: Config.integer("PORT").pipe(
@@ -36,7 +37,7 @@ const server = pipe(
   ),
   Effect.bind("app", ({ repository }) =>
     Effect.acquireRelease(
-      Effect.sync(() => buildApp(repository)),
+      Effect.sync(() => buildApp(repository, true, defaultImportDependencies)),
       (app) =>
         Effect.promise(() => app.close()).pipe(
           Effect.tapErrorCause((cause) => Effect.logError(Cause.pretty(cause))),

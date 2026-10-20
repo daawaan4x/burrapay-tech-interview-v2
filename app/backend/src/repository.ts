@@ -4,7 +4,9 @@ import { pipe } from "effect/Function";
 import type {
   DatabaseError,
   DuplicateSeason,
+  ImportedTeams,
   Match,
+  MatchNotFound,
   MatchSaveResult,
   SavedUpload,
   Season,
@@ -46,6 +48,12 @@ export interface Repository {
   readonly saveMatch: (
     match: Match,
   ) => Effect.Effect<MatchSaveResult, DatabaseError>;
+
+  readonly saveImportedTeams: (
+    seasonNumber: number,
+    matchId: string,
+    importedTeams: ImportedTeams,
+  ) => Effect.Effect<Match, DatabaseError | MatchNotFound>;
 
   readonly health: () => Effect.Effect<void, DatabaseError>;
 }

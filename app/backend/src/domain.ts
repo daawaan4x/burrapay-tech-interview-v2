@@ -97,6 +97,7 @@ export const MatchSchema = Schema.Struct({
 });
 
 export type Match = typeof MatchSchema.Type;
+export type ImportedTeams = typeof ImportedTeamsSchema.Type;
 
 export interface MatchSaveResult {
   readonly match: Match;
@@ -130,3 +131,21 @@ export class MatchNotFound extends Data.TaggedError("MatchNotFound")<{
 export class InvalidMatchText extends Data.TaggedError("InvalidMatchText")<{
   readonly message: string;
 }> {}
+
+export class PasteRequestError extends Data.TaggedError("PasteRequestError")<{
+  readonly message: string;
+  readonly cause?: unknown;
+}> {}
+
+export class PasteTimeout extends Data.TaggedError("PasteTimeout") {}
+
+export class PasteExtractionError extends Data.TaggedError(
+  "PasteExtractionError",
+)<{
+  readonly message: string;
+  readonly cause?: unknown;
+}> {}
+
+export class CandidateWorkPending extends Data.TaggedError(
+  "CandidateWorkPending",
+) {}
