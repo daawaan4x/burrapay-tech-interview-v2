@@ -337,7 +337,7 @@ test("an import write failure returns a sanitized 503", async (t) => {
   assert.deepEqual(response.json(), { error: "Database unavailable" });
 });
 
-test("a concurrent import winner is returned from repository readback", async (t) => {
+test("import returns the repository result instead of the locally assembled teams", async (t) => {
   const html = await readFile(
     new URL("./fixtures/vrpaste-tgiS1Swl-complete.html", import.meta.url),
   );

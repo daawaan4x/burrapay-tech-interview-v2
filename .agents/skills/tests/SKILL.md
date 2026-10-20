@@ -23,5 +23,9 @@ Prioritize concise, readable tests and the smallest setup that establishes the
 behavior. Keep structure simple and tidy existing permitted tests as you work;
 remove unnecessary verbosity without weakening assertions or coverage.
 
+For every test, identify a plausible defect in real application code that its
+assertions would catch. Follow the evidence guidance in principles.md before
+choosing whether to rename, revise, or remove a case.
+
 Use README validation commands appropriate to the change and report what the
 checks leave unverified.

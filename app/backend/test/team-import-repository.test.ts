@@ -30,19 +30,20 @@ const rowFor = (teams: ImportedTeams | null) => {
 };
 
 [
-  { name: "newly saved import", importedAt: "2026-10-20T00:00:00.000Z" },
+  { name: "attempted import", importedAt: "2026-10-20T00:00:00.000Z" },
   {
-    name: "another request's winning import",
+    name: "different import",
     importedAt: "2026-10-14T00:05:00.000Z",
   },
 ].forEach(({ name, importedAt }) => {
-  test(`import updates return the ${name} from readback`, async (t) => {
+  test(`import updates send their fields and decode the ${name} from driver readback`, async (t) => {
     const client = clientForTest();
     const attempted = {
       ...importedTeams,
       importedAt: "2026-10-20T00:00:00.000Z",
     };
     const persistedTeams = { ...importedTeams, importedAt };
+    const updates: unknown[][] = [];
 
     t.mock.method(
       client,
@@ -55,11 +56,7 @@ const rowFor = (teams: ImportedTeams | null) => {
             query,
             /IF\s+imported_teams\s*=\s*null\s+AND\s+upload_id\s*!=\s*null/,
           );
-          assert.deepEqual(parameters, [
-            JSON.stringify(attempted),
-            1,
-            saved.matchId,
-          ]);
+          updates.push(parameters);
 
           return Promise.resolve({});
         }
@@ -75,6 +72,7 @@ const rowFor = (teams: ImportedTeams | null) => {
       makeRepository(client).saveImportedTeams(1, saved.matchId, attempted),
     );
 
+    assert.deepEqual(updates, [[JSON.stringify(attempted), 1, saved.matchId]]);
     assert.deepEqual(result, { ...saved, importedTeams: persistedTeams });
   });
 });

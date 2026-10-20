@@ -14,9 +14,9 @@ const season: Season = {
 const makeClient = () =>
   new Client({ contactPoints: ["127.0.0.1"], localDataCenter: "datacenter1" });
 
-test("uses an atomic conditional insert for duplicate protection", (t) => {
+test("season creation sends a conditional insert and reports an unapplied result", (t) => {
   const client = makeClient();
-  t.mock.method(
+  const execute = t.mock.method(
     client,
     "execute",
     (query: string, parameters: unknown[], options: QueryOptions) => {
@@ -29,6 +29,7 @@ test("uses an atomic conditional insert for duplicate protection", (t) => {
   return Effect.runPromise(
     makeRepository(client).createSeason(season).pipe(Effect.flip),
   ).then((error) => {
+    assert.equal(execute.mock.callCount(), 1);
     assert.equal(error._tag, "DuplicateSeason");
   });
 });
@@ -72,7 +73,7 @@ test("reads every database page and sorts seasons numerically", (t) => {
   );
 });
 
-test("persists raw text and receipt fields in a prepared upload insert", (t) => {
+test("upload insert parameters preserve raw text and receipt fields", (t) => {
   const client = makeClient();
   const rawText = "  TMA vs TMB\r\nScore: 2-0\n\nhttps://example.com/\t\n";
   const inserts: unknown[][] = [];

@@ -49,7 +49,7 @@ test("a mismatched match UUID is rejected without database access", async (t) =>
 test("match reads pass the requested season and UUID to a prepared query", async (t) => {
   const client = makeClient();
   const { matchId } = makeMatchRecord();
-  t.mock.method(
+  const execute = t.mock.method(
     client,
     "execute",
     (query: string, parameters: unknown[], options: QueryOptions) => {
@@ -63,6 +63,8 @@ test("match reads pass the requested season and UUID to a prepared query", async
   const match = await Effect.runPromise(
     makeRepository(client).findMatch(2, matchId),
   );
+
+  assert.equal(execute.mock.callCount(), 1);
   assert.equal(match, null);
 });
 
@@ -123,7 +125,7 @@ test("a missing upload reports the requested UUID", async (t) => {
   assert.equal(error.uploadId, uploadId);
 });
 
-test("new match creation writes its fields and returns stored data", async (t) => {
+test("match creation sends insert fields and decodes driver readback", async (t) => {
   const client = makeClient();
   const input = makeMatchRecord();
   const expected = makeMatchRecord();
@@ -159,7 +161,7 @@ test("new match creation writes its fields and returns stored data", async (t) =
   assert.deepEqual(input, expected);
 });
 
-test("an existing match retains its timestamp and imported data", async (t) => {
+test("an unapplied match insert returns the decoded driver record", async (t) => {
   const client = makeClient();
   t.mock.method(client, "execute", (query: string) =>
     query.startsWith("INSERT")

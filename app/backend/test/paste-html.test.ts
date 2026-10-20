@@ -8,17 +8,33 @@ const fixture = (name: string) =>
   readFile(new URL(`./fixtures/${name}`, import.meta.url));
 
 [
-  [
-    "tgiS1Swl",
-    "Basculegion-F @ Focus Sash\nAbility: Swift Swim\n- Muddy Water\n- Protect\n- Ice Beam\n- Shadow Ball\nModest Nature",
-    "Golisopod @ Golisopite",
-  ],
-  [
-    "VvVArqgO",
-    "Mawile @ Mawilite\nAbility: Hyper Cutter\n- Protect\n- Sucker Punch\n- Play Rough\n- Iron Head\nAdamant Nature",
-    "Gyarados @ Gyaradosite",
-  ],
-].forEach(([id, firstCard, lastHeading]) => {
+  {
+    id: "tgiS1Swl",
+    firstCard:
+      "Basculegion-F @ Focus Sash\nAbility: Swift Swim\n- Muddy Water\n- Protect\n- Ice Beam\n- Shadow Ball\nModest Nature",
+    headings: [
+      "Basculegion-F @ Focus Sash",
+      "Sneasler @ White Herb",
+      "Archaludon @ Leftovers",
+      "Pelipper @ Damp Rock",
+      "Swampert @ Swampertite",
+      "Golisopod @ Golisopite",
+    ],
+  },
+  {
+    id: "VvVArqgO",
+    firstCard:
+      "Mawile @ Mawilite\nAbility: Hyper Cutter\n- Protect\n- Sucker Punch\n- Play Rough\n- Iron Head\nAdamant Nature",
+    headings: [
+      "Mawile @ Mawilite",
+      "Sneasler @ White Herb",
+      "Sinistcha @ Colbur Berry",
+      "Farigiraf @ Sitrus Berry",
+      "Rhyperior @ Wide Lens",
+      "Gyarados @ Gyaradosite",
+    ],
+  },
+].forEach(({ id, firstCard, headings }) => {
   test(`complete ${id} HTML yields card text in DOM order without page controls`, async () => {
     const text = await Effect.runPromise(
       extractPasteText(await fixture(`vrpaste-${id}-complete.html`)),
@@ -26,9 +42,11 @@ const fixture = (name: string) =>
 
     const cards = text.split("\n\n");
 
-    assert.equal(cards.length, 6);
+    assert.deepEqual(
+      cards.map((card) => card.split("\n")[0]),
+      headings,
+    );
     assert.equal(cards[0], firstCard);
-    assert.equal(cards[5].split("\n")[0], lastHeading);
     assert.doesNotMatch(text, /Export Team|<|\r/);
   });
 });

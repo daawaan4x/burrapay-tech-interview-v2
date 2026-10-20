@@ -54,6 +54,29 @@ they describe one result, such as a status and response body.
 
 ## Avoid misleading tests
 
+For every case, ask what plausible defect in real application code would make
+it fail. A test is tautological when its result follows from the setup without
+depending on the application behavior it claims to check. This applies to all
+tests, including pure functions, HTTP, extraction, storage, and test helpers.
+
+Mocks are useful when real code's handling of a controlled dependency result is
+the behavior under test. Merely configuring a fake and confirming that fake's
+behavior adds no evidence. Keep the behavior being assessed real, and derive
+expectations independently of both the implementation and the fake's logic.
+
+Choose the remedy from the evidence:
+
+- Rename a case when it already catches a meaningful application defect but its
+  name overstates its scope. Confirm any broader required behavior has coverage.
+- Revise or supplement a case when the claimed behavior is required but its
+  setup or assertions cannot detect a violation. Renaming does not close that gap.
+- Remove a case that only verifies its own setup or duplicates existing evidence
+  without protecting a distinct behavior. Preserve required coverage.
+
+Apply these remedies only to permitted work. Report problems in candidate-owned
+tests without supplying their design or fixes. Empty placeholders are unfinished
+work, not passing behavioral evidence.
+
 | Weak check | Better evidence |
 | --- | --- |
 | Assert a fake returns its configured value | Exercise the real code that consumes it and assert the public result |

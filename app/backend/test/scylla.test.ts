@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomInt, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
-import { Client } from "cassandra-driver";
+import { Client, type QueryOptions } from "cassandra-driver";
 import * as Effect from "effect/Effect";
 import { pipe } from "effect/Function";
 import { buildApp } from "../src/app.ts";
@@ -387,8 +387,13 @@ test(
 test("cleanup attempts every owned table and reports failed deletes", async (t) => {
   const client = new Client({ contactPoints: ["127.0.0.1"], localDataCenter });
   const cause = new Error("One delete failed");
-  const execute = t.mock.method(client, "execute", (query: string) =>
-    query.includes("match_uploads") ? Promise.reject(cause) : Promise.resolve(),
+  const execute = t.mock.method(
+    client,
+    "execute",
+    (query: string, _parameters: unknown[], _options: QueryOptions) =>
+      query.includes("match_uploads")
+        ? Promise.reject(cause)
+        : Promise.resolve(),
   );
 
   await assert.rejects(cleanupSeasons(client, [7]), (error: unknown) => {
@@ -404,6 +409,11 @@ test("cleanup attempts every owned table and reports failed deletes", async (t) 
       "DELETE FROM tournament.seasons WHERE season_number = ?",
     ].sort(),
   );
+
+  execute.mock.calls.forEach((call) => {
+    assert.deepEqual(call.arguments[1], [7]);
+    assert.deepEqual(call.arguments[2], { prepare: true });
+  });
 });
 
 test(

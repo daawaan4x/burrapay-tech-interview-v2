@@ -168,7 +168,7 @@ describe("rejected team text", () => {
 });
 
 test("candidate-owned: rejects missing ability with a meaningful team-text error", async () => {
-  const text = "Pikachu\nTrainer: Alex\n- Thunderbolt";
+  const text = "Pikachu\nLevel: 50\n- Thunderbolt";
   const error: unknown = await Effect.runPromise(
     Effect.flip(parseTeamText(text)),
   );
@@ -178,7 +178,7 @@ test("candidate-owned: rejects missing ability with a meaningful team-text error
 });
 
 test("candidate-owned: rejects empty ability with a meaningful team-text error", async () => {
-  const text = "Pikachu\nAbility: \nTrainer: Alex\n- Thunderbolt";
+  const text = "Pikachu\nAbility: \nLevel: 50\n- Thunderbolt";
   const error: unknown = await Effect.runPromise(
     Effect.flip(parseTeamText(text)),
   );

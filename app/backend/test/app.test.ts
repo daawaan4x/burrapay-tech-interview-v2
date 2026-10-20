@@ -61,7 +61,7 @@ test("creates and lists seasons using the agreed JSON shape", (t) => {
     });
 });
 
-test("reports duplicate seasons without overwriting them", (t) => {
+test("a duplicate-season error returns 409", (t) => {
   const app = makeApp(t, {
     createSeason: () => Effect.fail(new DuplicateSeason({ seasonNumber: 1 })),
   });
@@ -73,7 +73,7 @@ test("reports duplicate seasons without overwriting them", (t) => {
     });
 });
 
-test("saves decoded upload text exactly, including line endings and links", (t) => {
+test("upload forwards decoded text unchanged and returns the repository receipt", (t) => {
   const app = makeApp(t);
   return app
     .inject({
@@ -105,22 +105,25 @@ test("rejects uploads for an unknown season", (t) => {
 });
 
 const invalidSeasons = [
-  {},
-  { ...season, seasonNumber: 0 },
-  { ...season, seasonNumber: -1 },
-  { ...season, seasonNumber: 1.5 },
-  { ...season, seasonNumber: "1" },
-  { ...season, seasonNumber: Number.MAX_SAFE_INTEGER + 1 },
-  { ...season, name: " " },
-  { ...season, teams: {} },
-  { ...season, teams: { "": "Team" } },
-  { ...season, teams: { TMA: "" } },
-  { ...season, teams: { TMA: 123 } },
-  { ...season, unexpected: true },
-];
+  ["missing fields", {}],
+  ["a zero season number", { ...season, seasonNumber: 0 }],
+  ["a negative season number", { ...season, seasonNumber: -1 }],
+  ["a fractional season number", { ...season, seasonNumber: 1.5 }],
+  ["a string season number", { ...season, seasonNumber: "1" }],
+  [
+    "an unsafe season number",
+    { ...season, seasonNumber: Number.MAX_SAFE_INTEGER + 1 },
+  ],
+  ["a blank season name", { ...season, name: " " }],
+  ["no teams", { ...season, teams: {} }],
+  ["an empty team code", { ...season, teams: { "": "Team" } }],
+  ["an empty team name", { ...season, teams: { TMA: "" } }],
+  ["a non-string team name", { ...season, teams: { TMA: 123 } }],
+  ["unknown season fields", { ...season, unexpected: true }],
+] as const;
 
-invalidSeasons.map((payload, index) =>
-  test(`rejects invalid season input ${index + 1} before persistence`, (t) => {
+invalidSeasons.forEach(([name, payload]) => {
+  test(`season creation rejects ${name} before persistence`, (t) => {
     const app = makeApp(t, {
       createSeason: () => Effect.die("Invalid input reached persistence"),
     });
@@ -130,23 +133,28 @@ invalidSeasons.map((payload, index) =>
         assert.equal(response.statusCode, 400);
         assert.equal(typeof response.json().error, "string");
       });
-  }),
-);
+  });
+});
 
+const uploadUrl = "/seasons/1/matches/upload";
 const invalidUploads = [
-  { url: "/seasons/0/matches/upload", payload: { text } },
-  { url: "/seasons/1.5/matches/upload", payload: { text } },
-  { url: "/seasons/abc/matches/upload", payload: { text } },
-  { url: "/seasons/9007199254740992/matches/upload", payload: { text } },
-  { url: "/seasons/1/matches/upload", payload: {} },
-  { url: "/seasons/1/matches/upload", payload: { text: "" } },
-  { url: "/seasons/1/matches/upload", payload: { text: " \r\n\t" } },
-  { url: "/seasons/1/matches/upload", payload: { text: 123 } },
-  { url: "/seasons/1/matches/upload", payload: { text, extra: true } },
-];
+  ["a zero season number", "/seasons/0/matches/upload", { text }],
+  ["a fractional season number", "/seasons/1.5/matches/upload", { text }],
+  ["a nonnumeric season number", "/seasons/abc/matches/upload", { text }],
+  [
+    "an unsafe season number",
+    "/seasons/9007199254740992/matches/upload",
+    { text },
+  ],
+  ["missing text", uploadUrl, {}],
+  ["empty text", uploadUrl, { text: "" }],
+  ["whitespace-only text", uploadUrl, { text: " \r\n\t" }],
+  ["non-string text", uploadUrl, { text: 123 }],
+  ["unknown upload fields", uploadUrl, { text, extra: true }],
+] as const;
 
-invalidUploads.map(({ url, payload }, index) =>
-  test(`rejects invalid upload input ${index + 1} before persistence`, (t) => {
+invalidUploads.forEach(([name, url, payload]) => {
+  test(`upload rejects ${name} before persistence`, (t) => {
     const app = makeApp(t, {
       saveUpload: () => Effect.die("Invalid input reached persistence"),
     });
@@ -154,8 +162,8 @@ invalidUploads.map(({ url, payload }, index) =>
       assert.equal(response.statusCode, 400);
       assert.equal(typeof response.json().error, "string");
     });
-  }),
-);
+  });
+});
 
 test("handles malformed JSON and enforces the body limit", (t) => {
   const app = makeApp(t);

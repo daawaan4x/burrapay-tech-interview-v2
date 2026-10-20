@@ -4,6 +4,7 @@ import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import { pipe } from "effect/Function";
+import * as Option from "effect/Option";
 import * as TestClock from "effect/TestClock";
 import * as TestContext from "effect/TestContext";
 import { fetchPaste } from "../src/paste-http.ts";
@@ -177,7 +178,15 @@ test("a streamed extra byte exceeds 1 MiB regardless of the content-length heade
           ),
         ),
         Effect.tap(({ started }) => Deferred.await(started)),
-        Effect.tap(() => TestClock.adjust("10 seconds")),
+        Effect.tap(() => TestClock.adjust(9999)),
+        Effect.tap(({ fiber }) =>
+          Effect.map(Fiber.poll(fiber), (result) => {
+            assert.ok(Option.isNone(result));
+            assert.equal(signal?.aborted, false);
+            assert.equal(cancelled, false);
+          }),
+        ),
+        Effect.tap(() => TestClock.adjust(1)),
         Effect.flatMap(({ fiber }) => Fiber.join(fiber)),
         Effect.provide(TestContext.TestContext),
       ),
