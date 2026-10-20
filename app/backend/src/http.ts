@@ -3,11 +3,11 @@ import { pipe } from "effect/Function";
 import * as Schema from "effect/Schema";
 import type { FastifyInstance, FastifyReply, RouteOptions } from "fastify";
 import {
-  type CandidateWorkPending,
   type DatabaseError,
   type DuplicateSeason,
   InvalidInput,
   type InvalidMatchText,
+  type InvalidTeamText,
   type MatchNotFound,
   type PasteExtractionError,
   type PasteRequestError,
@@ -24,10 +24,10 @@ type ApiError =
   | UploadNotFound
   | MatchNotFound
   | InvalidMatchText
+  | InvalidTeamText
   | PasteRequestError
   | PasteTimeout
-  | PasteExtractionError
-  | CandidateWorkPending;
+  | PasteExtractionError;
 
 export const respond = <A>(
   effect: Effect.Effect<A, ApiError>,
@@ -68,13 +68,6 @@ export const respond = <A>(
           return reply.code(422).send({ error: message });
         }),
 
-      CandidateWorkPending: () =>
-        Effect.sync(() =>
-          reply.code(501).send({
-            error: "Team-text parsing is not implemented yet",
-          }),
-        ),
-
       InvalidInput: ({ message }) =>
         Effect.sync(() => reply.code(400).send({ error: message })),
 
@@ -89,6 +82,9 @@ export const respond = <A>(
         ),
 
       InvalidMatchText: ({ message }) =>
+        Effect.sync(() => reply.code(422).send({ error: message })),
+
+      InvalidTeamText: ({ message }) =>
         Effect.sync(() => reply.code(422).send({ error: message })),
 
       DuplicateSeason: ({ seasonNumber }) =>

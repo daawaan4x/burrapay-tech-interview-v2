@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import { randomInt, randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 import { Client } from "cassandra-driver";
 import * as Effect from "effect/Effect";
 import { pipe } from "effect/Function";
 import { buildApp } from "../src/app.ts";
-import type { Season, UploadReceipt } from "../src/domain.ts";
+import type { Match, Season, UploadReceipt } from "../src/domain.ts";
 import { openRepository, type Repository } from "../src/repository.ts";
+import type { ImportDependencies } from "../src/routes/team-import.ts";
 import {
   makeImportedMatchRecord,
   makeMatchRecord,
@@ -44,7 +46,10 @@ interface ScyllaTest {
 }
 
 // Only resource setup and ownership are shared; each case supplies its behavior.
-const withScylla = (run: (context: ScyllaTest) => Promise<void>) =>
+const withScylla = (
+  run: (context: ScyllaTest) => Promise<void>,
+  dependencies?: ImportDependencies,
+) =>
   Effect.runPromise(
     pipe(
       Effect.Do,
@@ -77,7 +82,7 @@ const withScylla = (run: (context: ScyllaTest) => Promise<void>) =>
       ),
       Effect.bind("app", ({ repository }) =>
         Effect.acquireRelease(
-          Effect.sync(() => buildApp(repository, false)),
+          Effect.sync(() => buildApp(repository, false, dependencies)),
           (app) => Effect.promise(() => app.close()),
         ),
       ),
@@ -111,6 +116,114 @@ const withScylla = (run: (context: ScyllaTest) => Promise<void>) =>
       Effect.scoped,
     ),
   );
+
+test("Scylla HTTP imports: overlapping requests, GET, and repeat return one saved import", {
+  ...integration,
+  timeout: 30000,
+}, async () => {
+  const html = await Promise.all(
+    ["tgiS1Swl", "VvVArqgO"].map((id) =>
+      readFile(
+        new URL(`./fixtures/vrpaste-${id}-complete.html`, import.meta.url),
+      ),
+    ),
+  );
+  let release: () => void = () => undefined;
+  const started = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let firstRequests = 0;
+  let requests = 0;
+  let timestamps = 0;
+
+  await withScylla(
+    async ({ repository, client, app, createSeason }) => {
+      const season = await createSeason();
+      const matchId = randomUUID();
+      const match = {
+        ...makeMatchRecord(),
+        seasonNumber: season.seasonNumber,
+        matchId,
+        uploadId: matchId,
+      };
+      await Effect.runPromise(repository.saveMatch(match));
+
+      const url = `/seasons/${season.seasonNumber}/matches/${matchId}`;
+      const responses = await Promise.all([
+        app.inject({ method: "POST", url: `${url}/teams/import` }),
+        app.inject({ method: "POST", url: `${url}/teams/import` }),
+      ]);
+      responses.forEach((response) => {
+        assert.equal(response.statusCode, 200, response.body);
+      });
+
+      const saved: Match = responses[0].json();
+      assert.deepEqual(responses[1].json(), saved);
+      assert.deepEqual({ ...saved, importedTeams: null }, match);
+      assert.ok(saved.importedTeams);
+      assert.ok(
+        ["2026-10-20T12:00:00.000Z", "2026-10-20T12:00:01.000Z"].includes(
+          saved.importedTeams.importedAt,
+        ),
+      );
+      assert.equal(saved.importedTeams.participants.length, 2);
+      saved.importedTeams.participants.forEach((participant, index) => {
+        assert.equal(participant.teamCode, match.participants[index].teamCode);
+        assert.equal(
+          participant.playerName,
+          match.participants[index].playerName,
+        );
+        assert.equal(participant.sourceUrl, match.participants[index].pasteUrl);
+        assert.equal(participant.pokemon.length, 6);
+      });
+      assert.equal(
+        saved.importedTeams.participants[0].pokemon[0].species,
+        "Basculegion-F",
+      );
+      assert.equal(
+        saved.importedTeams.participants[1].pokemon[0].species,
+        "Mawile",
+      );
+
+      const stored = await client.execute(
+        "SELECT imported_teams FROM tournament.matches WHERE season_number = ? AND match_id = ?",
+        [season.seasonNumber, matchId],
+        { prepare: true },
+      );
+      assert.deepEqual(
+        JSON.parse(stored.first().get("imported_teams")),
+        saved.importedTeams,
+      );
+
+      const get = await app.inject(url);
+      const repeat = await app.inject({
+        method: "POST",
+        url: `${url}/teams/import`,
+      });
+
+      assert.equal(get.statusCode, 200);
+      assert.deepEqual(get.json(), saved);
+      assert.equal(repeat.statusCode, 200);
+      assert.deepEqual(repeat.json(), saved);
+      assert.equal(requests, 4);
+      assert.equal(timestamps, 2);
+    },
+    {
+      fetch: async (url) => {
+        requests += 1;
+        const first = url.endsWith("/tgiS1Swl");
+        if (first) {
+          firstRequests += 1;
+          if (firstRequests === 2) release();
+          await started;
+        }
+
+        return new Response(html[first ? 0 : 1]);
+      },
+      now: () => new Date(Date.UTC(2026, 9, 20, 12, 0, timestamps++)),
+    },
+  );
+});
 
 test(
   "Scylla imports: concurrent updates preserve one complete import and its match",

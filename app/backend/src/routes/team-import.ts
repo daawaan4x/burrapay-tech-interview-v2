@@ -2,12 +2,7 @@ import * as Effect from "effect/Effect";
 import { pipe } from "effect/Function";
 import * as Schema from "effect/Schema";
 import type { FastifyPluginAsync } from "fastify";
-import {
-  CandidateWorkPending,
-  type Match,
-  MatchNotFound,
-  SeasonNumberSchema,
-} from "../domain.ts";
+import { type Match, MatchNotFound, SeasonNumberSchema } from "../domain.ts";
 import {
   decode,
   noBodyErrorHandler,
@@ -17,6 +12,7 @@ import {
 import { extractPasteText } from "../paste-html.ts";
 import { fetchPaste, type PasteFetch } from "../paste-http.ts";
 import type { Repository } from "../repository.ts";
+import { parseTeamText } from "../team-parser.ts";
 
 export interface ImportDependencies {
   readonly fetch: PasteFetch;
@@ -42,18 +38,46 @@ const loadMatch = (
     ),
   );
 
-const importTeams = (match: Match, fetch: PasteFetch) => {
+const importParticipant = (
+  participant: Match["participants"][number],
+  fetch: PasteFetch,
+) =>
+  pipe(
+    fetchPaste(participant.pasteUrl, fetch),
+    Effect.flatMap(extractPasteText),
+    Effect.bindTo("rawText"),
+    Effect.bind("pokemon", ({ rawText }) => parseTeamText(rawText)),
+    Effect.map(({ rawText, pokemon }) => ({
+      teamCode: participant.teamCode,
+      playerName: participant.playerName,
+      sourceUrl: participant.pasteUrl,
+      rawText,
+      pokemon,
+    })),
+  );
+
+const importTeams = (
+  repository: Repository,
+  match: Match,
+  dependencies: ImportDependencies,
+) => {
   if (match.importedTeams !== null) return Effect.succeed(match);
 
   return pipe(
-    Effect.forEach(
-      match.participants,
-      ({ pasteUrl }) =>
-        pipe(fetchPaste(pasteUrl, fetch), Effect.flatMap(extractPasteText)),
-      { concurrency: 1, discard: true },
+    Effect.all(
+      [
+        importParticipant(match.participants[0], dependencies.fetch),
+        importParticipant(match.participants[1], dependencies.fetch),
+      ],
+      { concurrency: 1 },
     ),
-    // Candidate-owned parsing must be supplied before saving an import.
-    Effect.andThen(Effect.fail(new CandidateWorkPending())),
+    Effect.bindTo("participants"),
+    Effect.bind("importedAt", () =>
+      Effect.sync(() => dependencies.now().toISOString()),
+    ),
+    Effect.flatMap((teams) =>
+      repository.saveImportedTeams(match.seasonNumber, match.matchId, teams),
+    ),
   );
 };
 
@@ -81,7 +105,9 @@ export const teamImportRoutes: FastifyPluginAsync<{
             loadMatch(repository, seasonNumber, matchId),
           ),
 
-          Effect.flatMap((match) => importTeams(match, dependencies.fetch)),
+          Effect.flatMap((match) =>
+            importTeams(repository, match, dependencies),
+          ),
         ),
         reply,
         200,

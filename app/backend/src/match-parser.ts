@@ -140,3 +140,13 @@ export const parseMatchText = (text: string, teams: Season["teams"]) =>
       winner: scores[0] > scores[1] ? teamCodes[0] : teamCodes[1],
     })),
   );
+
+export const serializeMatch = ([a, b]: MatchParticipants) => 
+  Effect.succeed(() => `
+${a.teamCode} vs ${b.teamCode}
+${a.playerName} vs ${b.playerName}
+Score: ${a.score}-${b.score}
+
+${a.playerName}: ${a.pasteUrl}
+${b.playerName}: ${b.pasteUrl}
+`.trim())

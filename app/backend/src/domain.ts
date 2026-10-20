@@ -70,6 +70,8 @@ const PokemonRecordSchema = Schema.Struct({
   moves: Schema.Array(Schema.String),
 });
 
+export type PokemonRecord = typeof PokemonRecordSchema.Type;
+
 const ImportedParticipantSchema = Schema.Struct({
   teamCode: Schema.String,
   playerName: Schema.String,
@@ -132,6 +134,10 @@ export class InvalidMatchText extends Data.TaggedError("InvalidMatchText")<{
   readonly message: string;
 }> {}
 
+export class InvalidTeamText extends Data.TaggedError("InvalidTeamText")<{
+  readonly message: string;
+}> {}
+
 export class PasteRequestError extends Data.TaggedError("PasteRequestError")<{
   readonly message: string;
   readonly cause?: unknown;
@@ -145,7 +151,3 @@ export class PasteExtractionError extends Data.TaggedError(
   readonly message: string;
   readonly cause?: unknown;
 }> {}
-
-export class CandidateWorkPending extends Data.TaggedError(
-  "CandidateWorkPending",
-) {}
