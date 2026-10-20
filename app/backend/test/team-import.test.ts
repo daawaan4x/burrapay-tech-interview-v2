@@ -351,7 +351,3 @@ test("import returns the repository result instead of the locally assembled team
   assert.equal(response.statusCode, 200);
   assert.deepEqual(response.json(), saved);
 });
-
-test("candidate-owned: one paste succeeds while the other fails, with nothing persisted", async (t) => {
-  
-});
