@@ -29,6 +29,7 @@ services:
       PORT: "3001"
       SCYLLA_CONTACT_POINTS: scylla
       SCYLLA_LOCAL_DATACENTER: datacenter1
+      PASTE_FETCH_MODE: ${PASTE_FETCH_MODE:-live}
     ports:
       - "127.0.0.1:3001:3001"
     networks:

@@ -232,7 +232,8 @@ unusable HTML or invalid team text `422`.
 Tests use complete browser snapshots. Fresh responses lacked team data during
 the [fixture investigation](./app/backend/test/fixtures/README.md), so successful
 live imports remain unverified. Live requests never fall back to fixtures.
-See [the adapter notes](./docs/task-2-support.md) for extraction details.
+See [the extraction ADR](./docs/adr/003-separate-fetching-from-html-extraction.md)
+for adapter responsibilities.
 
 # Submission
 
@@ -282,8 +283,22 @@ To summarize the results:
 | `pnpm typecheck` | ✅ passed |
 | `pnpm test` | ✅ 207 backend tests |
 | `docker compose build` | ✅ passed |
-| `docker compose up -d --wait` |  |
+| `docker compose up -d --wait` | ✅ Podman; all three services healthy |
 | `SCYLLA_TEST_CONTACT_POINTS=127.0.0.1 pnpm test` | ✅ 215 backend tests |
+
+The persistence was verified to survive restarts. You can run the following command to start the dev with the offline HTML fixtures:
+
+```sh
+PASTE_FETCH_MODE=fixtures podman compose up -d --wait
+```
+
+Then proceed to test the instance with the script below. This will run requests to import the sample match text, wait for you to restart the service, and checks that the records survived.
+
+```sh
+pnpm --filter @repo/backend exec tsx src/scripts/check-restart.ts
+```
+
+Captured output: [007-restart.log](./logs/007-restart.log).
 
 ## Resources and AI assistance
 

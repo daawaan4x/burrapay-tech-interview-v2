@@ -4,7 +4,9 @@ import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import { pipe } from "effect/Function";
 import { buildApp } from "./app.ts";
+import { loadPasteFetch } from "./paste-source.ts";
 import { openRepository } from "./repository.ts";
+import { defaultImportDependencies } from "./routes/team-import.ts";
 
 const configuration = Config.all({
   port: Config.integer("PORT").pipe(
@@ -31,12 +33,17 @@ const configuration = Config.all({
 const server = pipe(
   Effect.Do,
   Effect.bind("config", () => configuration),
+  Effect.bind("fetch", () => loadPasteFetch()),
+
   Effect.bind("repository", ({ config }) =>
     openRepository(config.contactPoints, config.localDataCenter),
   ),
-  Effect.bind("app", ({ repository }) =>
+
+  Effect.bind("app", ({ repository, fetch }) =>
     Effect.acquireRelease(
-      Effect.sync(() => buildApp(repository)),
+      Effect.sync(() =>
+        buildApp(repository, true, { ...defaultImportDependencies, fetch }),
+      ),
       (app) =>
         Effect.promise(() => app.close()).pipe(
           Effect.tapErrorCause((cause) => Effect.logError(Cause.pretty(cause))),

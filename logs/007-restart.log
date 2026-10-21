@@ -1,0 +1,205 @@
+ daawaan4x@FEDORA-2OS6A2DV    16ms    2026/10/21  │ 2:52:13 PM  
+on main x
+in ~/repos/daawaan4x/burrapay-tech-interview-v2
+❯ PASTE_FETCH_MODE=fixtures podman compose up -d --wait
+>>>> Executing external compose provider "/usr/local/bin/docker-compose". Please see podman-compose(1) for how to disable this message. <<<<
+
+[+] up 3/3
+ ✔ Container burrapay-tech-interview-v2-scylla-1   Healthy                                    23.0s
+ ✔ Container burrapay-tech-interview-v2-backend-1  Healthy                                    23.0s
+ ✔ Container burrapay-tech-interview-v2-frontend-1 Healthy                                    33.4s
+
+ daawaan4x@FEDORA-2OS6A2DV    33s 557ms    2026/10/21  │ 2:53:41 PM  
+on main x
+in ~/repos/daawaan4x/burrapay-tech-interview-v2
+❯ pnpm --filter @repo/backend exec tsx src/scripts/check-restart.ts
+Saved baseline from http://127.0.0.1:3001/seasons/1349890724/matches/c9b076b5-8f2d-4929-8330-1316bf33907e:
+{
+  "matchId": "c9b076b5-8f2d-4929-8330-1316bf33907e",
+  "uploadId": "c9b076b5-8f2d-4929-8330-1316bf33907e",
+  "seasonNumber": 1349890724,
+  "participants": [
+    {
+      "teamCode": "TMA",
+      "playerName": "Player A",
+      "score": 2,
+      "pasteUrl": "https://www.vrpastes.com/tgiS1Swl"
+    },
+    {
+      "teamCode": "TMB",
+      "playerName": "Player B",
+      "score": 0,
+      "pasteUrl": "https://www.vrpastes.com/VvVArqgO"
+    }
+  ],
+  "winnerTeamCode": "TMA",
+  "parsedAt": "2026-10-21T06:53:51.124Z",
+  "importedTeams": {
+    "importedAt": "2026-10-21T06:53:51.166Z",
+    "participants": [
+      {
+        "teamCode": "TMA",
+        "playerName": "Player A",
+        "sourceUrl": "https://www.vrpastes.com/tgiS1Swl",
+        "rawText": "Basculegion-F @ Focus Sash\nAbility: Swift Swim\n- Muddy Water\n- Protect\n- Ice Beam\n- Shadow Ball\nModest Nature\n\nSneasler @ White Herb\nAbility: Unburden\n- Protect\n- Rock Slide\n- Close Combat\n- Dire Claw\nAdamant Nature\n\nArchaludon @ Leftovers\nAbility: Stamina\n- Protect\n- Dragon Pulse\n- Electro Shot\n- Aura Sphere\nBold Nature\n\nPelipper @ Damp Rock\nAbility: Drizzle\n- Wide Guard\n- Hurricane\n- Weather Ball\n- Helping Hand\nBold Nature\n\nSwampert @ Swampertite\nAbility: Damp\n- Protect\n- Wave Crash\n- Ice Punch\n- Earthquake\nAdamant Nature\n\nGolisopod @ Golisopite\nAbility: Emergency Exit\n- Protect\n- Sucker Punch\n- Leech Life\n- Iron Head\nAdamant Nature",
+        "pokemon": [
+          {
+            "species": "Basculegion-F",
+            "nickname": null,
+            "item": "Focus Sash",
+            "ability": "Swift Swim",
+            "moves": [
+              "Muddy Water",
+              "Protect",
+              "Ice Beam",
+              "Shadow Ball"
+            ]
+          },
+          {
+            "species": "Sneasler",
+            "nickname": null,
+            "item": "White Herb",
+            "ability": "Unburden",
+            "moves": [
+              "Protect",
+              "Rock Slide",
+              "Close Combat",
+              "Dire Claw"
+            ]
+          },
+          {
+            "species": "Archaludon",
+            "nickname": null,
+            "item": "Leftovers",
+            "ability": "Stamina",
+            "moves": [
+              "Protect",
+              "Dragon Pulse",
+              "Electro Shot",
+              "Aura Sphere"
+            ]
+          },
+          {
+            "species": "Pelipper",
+            "nickname": null,
+            "item": "Damp Rock",
+            "ability": "Drizzle",
+            "moves": [
+              "Wide Guard",
+              "Hurricane",
+              "Weather Ball",
+              "Helping Hand"
+            ]
+          },
+          {
+            "species": "Swampert",
+            "nickname": null,
+            "item": "Swampertite",
+            "ability": "Damp",
+            "moves": [
+              "Protect",
+              "Wave Crash",
+              "Ice Punch",
+              "Earthquake"
+            ]
+          },
+          {
+            "species": "Golisopod",
+            "nickname": null,
+            "item": "Golisopite",
+            "ability": "Emergency Exit",
+            "moves": [
+              "Protect",
+              "Sucker Punch",
+              "Leech Life",
+              "Iron Head"
+            ]
+          }
+        ]
+      },
+      {
+        "teamCode": "TMB",
+        "playerName": "Player B",
+        "sourceUrl": "https://www.vrpastes.com/VvVArqgO",
+        "rawText": "Mawile @ Mawilite\nAbility: Hyper Cutter\n- Protect\n- Sucker Punch\n- Play Rough\n- Iron Head\nAdamant Nature\n\nSneasler @ White Herb\nAbility: Unburden\n- Fake Out\n- Dire Claw\n- Coaching\n- Close Combat\nAdamant Nature\n\nSinistcha @ Colbur Berry\nAbility: Hospitality\n- Giga Drain\n- Protect\n- Trick Room\n- Rage Powder\nCalm Nature\n\nFarigiraf @ Sitrus Berry\nAbility: Armor Tail\n- Ally Switch\n- Helping Hand\n- Psychic\n- Trick Room\nRelaxed Nature\n\nRhyperior @ Wide Lens\nAbility: Lightning Rod\n- Rock Slide\n- High Horsepower\n- Substitute\n- Protect\nBrave Nature\n\nGyarados @ Gyaradosite\nAbility: Intimidate\n- Waterfall\n- Crunch\n- Ice Fang\n- Dragon Dance\nAdamant Nature",
+        "pokemon": [
+          {
+            "species": "Mawile",
+            "nickname": null,
+            "item": "Mawilite",
+            "ability": "Hyper Cutter",
+            "moves": [
+              "Protect",
+              "Sucker Punch",
+              "Play Rough",
+              "Iron Head"
+            ]
+          },
+          {
+            "species": "Sneasler",
+            "nickname": null,
+            "item": "White Herb",
+            "ability": "Unburden",
+            "moves": [
+              "Fake Out",
+              "Dire Claw",
+              "Coaching",
+              "Close Combat"
+            ]
+          },
+          {
+            "species": "Sinistcha",
+            "nickname": null,
+            "item": "Colbur Berry",
+            "ability": "Hospitality",
+            "moves": [
+              "Giga Drain",
+              "Protect",
+              "Trick Room",
+              "Rage Powder"
+            ]
+          },
+          {
+            "species": "Farigiraf",
+            "nickname": null,
+            "item": "Sitrus Berry",
+            "ability": "Armor Tail",
+            "moves": [
+              "Ally Switch",
+              "Helping Hand",
+              "Psychic",
+              "Trick Room"
+            ]
+          },
+          {
+            "species": "Rhyperior",
+            "nickname": null,
+            "item": "Wide Lens",
+            "ability": "Lightning Rod",
+            "moves": [
+              "Rock Slide",
+              "High Horsepower",
+              "Substitute",
+              "Protect"
+            ]
+          },
+          {
+            "species": "Gyarados",
+            "nickname": null,
+            "item": "Gyaradosite",
+            "ability": "Intimidate",
+            "moves": [
+              "Waterfall",
+              "Crunch",
+              "Ice Fang",
+              "Dragon Dance"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
+Demo records will remain in this season for inspection.
+Restart the backend (and optionally Scylla), preserve the database volume, then press Enter when ready: 
+PASS: the imported match is unchanged after your restart.

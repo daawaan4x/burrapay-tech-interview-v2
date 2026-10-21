@@ -15,6 +15,9 @@ FROM base AS runtime
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=3001
 RUN pnpm install --frozen-lockfile --prod --filter @repo/backend...
 COPY --from=build /app/app/backend/dist ./app/backend/dist
+COPY app/backend/test/fixtures/vrpaste-tgiS1Swl-complete.html \
+     app/backend/test/fixtures/vrpaste-VvVArqgO-complete.html \
+     ./app/backend/test/fixtures/
 USER node
 EXPOSE 3001
 CMD ["node", "app/backend/dist/index.js"]

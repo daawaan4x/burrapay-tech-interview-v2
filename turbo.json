@@ -3,6 +3,7 @@
   "tasks": {
     "dev": {
       "cache": false,
+      "passThroughEnv": ["PASTE_FETCH_MODE"],
       "persistent": true
     },
     "build": {
@@ -12,6 +13,7 @@
     "start": {
       "dependsOn": ["build"],
       "cache": false,
+      "passThroughEnv": ["PASTE_FETCH_MODE"],
       "persistent": true
     },
     "typecheck": {
