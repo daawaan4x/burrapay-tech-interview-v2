@@ -1,0 +1,23 @@
+Command: pnpm exec turbo run typecheck --force
+Started: 2026-10-21T00:16:21.732009+00:00
+
+
+   • turbo 2.11.8
+   • Packages in scope: @repo/backend, @repo/frontend
+   • Running typecheck in 2 packages
+   • Remote caching disabled
+
+@repo/backend:typecheck: cache bypass, force executing e2ff946c95cdfd92
+@repo/frontend:typecheck: cache bypass, force executing 0da4d71c57bf831a
+@repo/backend:typecheck: $ tsc --project tsconfig.test.json
+@repo/frontend:typecheck: $ next typegen && tsc --noEmit
+@repo/frontend:typecheck: Generating route types...
+@repo/frontend:typecheck: ✓ Types generated successfully
+
+ Tasks:    2 successful, 2 total
+Cached:    0 cached, 2 total
+  Time:    1.536s 
+
+
+Finished: 2026-10-21T00:16:23.365850+00:00
+Exit status: 0

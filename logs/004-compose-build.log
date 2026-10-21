@@ -1,0 +1,171 @@
+Command: podman compose build
+Started: 2026-10-21T00:19:30.860305+00:00
+
+[4m>>>> Executing external compose provider "/usr/local/bin/docker-compose". Please see podman-compose(1) for how to disable this message. <<<<
+
+[0m Image technical-exam-backend:local Building 
+ Image technical-exam-backend:local Building 
+Sending build context to Docker daemon  147.7kB
+[1/3] STEP 1/6: FROM node:24-bookworm-slim AS base
+[1/3] STEP 2/6: WORKDIR /app
+--> Using cache 85ef8fb8e348affbb2cdb19b37b76d6bfb809b513eace3f11343c234c41c69f4
+--> 85ef8fb8e348
+[1/3] STEP 3/6: RUN npm install --global pnpm@12.4.2
+--> Using cache cb29fc9b6e23bd7f2f16cc8bb54f90bcad86436d3914e25c894710f78c2c2747
+--> cb29fc9b6e23
+[1/3] STEP 4/6: COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+--> Using cache cfffef87926dabd5e2365f706d6baff93f185972f7701ad041796b5311798f9e
+--> cfffef87926d
+[1/3] STEP 5/6: COPY app/backend/package.json ./app/backend/package.json
+--> Using cache f0f822d4f25fd68ca3bc8c0124190b5d199adbd65e1221853338081b0e3f7ece
+--> f0f822d4f25f
+[1/3] STEP 6/6: COPY app/frontend/package.json ./app/frontend/package.json
+--> Using cache 8d0a2db747d9579c07136732b5b107f5688128aa82a0795577156a2b79b25eed
+--> 8d0a2db747d9
+[2/3] STEP 1/5: FROM 8d0a2db747d9579c07136732b5b107f5688128aa82a0795577156a2b79b25eed AS build
+[2/3] STEP 2/5: RUN pnpm install --frozen-lockfile --filter @repo/backend...
+--> Using cache d3fcbb8fcfabbbc76099406f81fcb3d5c44bc5084b7a43f0473f21bd9d4a461a
+--> d3fcbb8fcfab
+[2/3] STEP 3/5: COPY app/backend/tsconfig.json ./app/backend/tsconfig.json
+--> Using cache dc7034abe5bce182ad6e951e916678410ac0a3a7ce7f5deecd261fc25b122d1f
+--> dc7034abe5bc
+[2/3] STEP 4/5: COPY app/backend/src ./app/backend/src
+--> Using cache 4c88d1eeea5aae05ccd8737e4912c926b703da613f8f0491e93e5a932a7535ae
+--> 4c88d1eeea5a
+[2/3] STEP 5/5: RUN pnpm --filter @repo/backend build
+--> Using cache 8617efbe6f31994b0c59c52b8bfdb2a8646f907bb5a87c13a1196404207d7c9c
+--> 8617efbe6f31
+[3/3] STEP 1/8: FROM 8d0a2db747d9579c07136732b5b107f5688128aa82a0795577156a2b79b25eed AS runtime
+[3/3] STEP 2/8: ENV NODE_ENV=production HOST=0.0.0.0 PORT=3001
+--> Using cache fc171a22a5f7f4488d1ec71cf27f39097612ed326af2354c62ccb59b4c039453
+--> fc171a22a5f7
+[3/3] STEP 3/8: RUN pnpm install --frozen-lockfile --prod --filter @repo/backend...
+--> Using cache 23e3c46d7a23b8899f446956f44d5570eb38e32533214d172e94f429f16771ed
+--> 23e3c46d7a23
+[3/3] STEP 4/8: COPY --from=build /app/app/backend/dist ./app/backend/dist
+--> Using cache e019b7283024326e7f536096f727bbd1fdbff0b83abae9b4f85e3e7bee8e18be
+--> e019b7283024
+[3/3] STEP 5/8: USER node
+--> Using cache 601c8d3f592ee87dc97710d2d8527b5a5d337dca057e31fa2b6c8274545ea8cf
+--> 601c8d3f592e
+[3/3] STEP 6/8: EXPOSE 3001
+--> Using cache 4f148d20a9133a13cfd52b68895b9fbe7c1fc95176984a2a46742ff0a1327f70
+--> 4f148d20a913
+[3/3] STEP 7/8: CMD ["node", "app/backend/dist/index.js"]
+--> Using cache d6f03a31a3cb5388652450135b4ca98e49ddea99c9d0e784065644f4747c77d9
+--> d6f03a31a3cb
+[3/3] STEP 8/8: LABEL "com.docker.compose.image.builder"="classic"
+--> Using cache 6b794d723d6c18420a709392d998d43f576c3e2767e182e108583105984f7cb2
+[3/3] COMMIT docker.io/library/technical-exam-backend:local
+--> 6b794d723d6c
+Successfully tagged docker.io/library/technical-exam-backend:local
+6b794d723d6c18420a709392d998d43f576c3e2767e182e108583105984f7cb2
+Successfully built 6b794d723d6c
+Successfully tagged technical-exam-backend:local
+ Image technical-exam-backend:local Built 
+ Image technical-exam-backend:local Built 
+ Image technical-exam-frontend:local Building 
+ Image technical-exam-frontend:local Building 
+Sending build context to Docker daemon  148.5kB
+[1/2] STEP 1/10: FROM node:24-bookworm-slim AS build
+[1/2] STEP 2/10: WORKDIR /app
+--> Using cache 85ef8fb8e348affbb2cdb19b37b76d6bfb809b513eace3f11343c234c41c69f4
+--> 85ef8fb8e348
+[1/2] STEP 3/10: ENV NEXT_TELEMETRY_DISABLED=1
+--> Using cache 6d381575ce9d60a275e17ed02a01209253914ad5428c8471bde90c8e7a1f7d0e
+--> 6d381575ce9d
+[1/2] STEP 4/10: RUN npm install --global pnpm@12.4.2
+--> Using cache 6a263636dc277fe9758bec2494092ec06a1bf8bed21cec5e1957372dd7952e31
+--> 6a263636dc27
+[1/2] STEP 5/10: COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+--> Using cache cbb477ec56021df9f4c4e838bbf246bb5685b4aeacb325e91f43fe4b338439d8
+--> cbb477ec5602
+[1/2] STEP 6/10: COPY app/backend/package.json ./app/backend/package.json
+--> Using cache 26821fe2803c60c6923a5f38c523f790f235dc849785542969767fb6170e96e7
+--> 26821fe2803c
+[1/2] STEP 7/10: COPY app/frontend/package.json ./app/frontend/package.json
+--> Using cache a5d47f7cddbef980c32f1be1070c9d3a076f8455df78a539b6e05c76d1077b21
+--> a5d47f7cddbe
+[1/2] STEP 8/10: RUN pnpm install --frozen-lockfile --filter @repo/frontend...
+? Verifying lockfile against supply-chain policies (184 entries)...
+Update available! 12.4.2 → 12.14.0.
+Changelog: https://pnpm.io/v/12.14.0
+To update, run: curl -fsSL https://get.pnpm.io/install.sh | sh -
+✓ Lockfile passes supply-chain policies (184 entries in 1.1s)
+Lockfile is up to date, resolution step is skipped
+Downloading next@16.4.0: 0.00 B/43.63 MB
+Downloading @img/sharp-libvips-linux-x64@1.3.4: 0.00 B/8.21 MB
+Downloading @biomejs/cli-linux-x64@2.5.15: 0.00 B/24.65 MB
+Downloading @next/swc-linux-x64-gnu@16.4.0: 0.00 B/35.23 MB
+Downloading @turbo/linux-64@2.11.8: 0.00 B/18.08 MB
+Downloading @turbo/linux-64@2.11.8: 4.38 MB/18.08 MB
+Downloading @turbo/linux-64@2.11.8: 13.41 MB/18.08 MB
+Packages are hard linked from the content-addressable store to the virtual store.
+  Content-addressable store is at: /root/.local/share/pnpm/store/v11
+  Virtual store is at:             node_modules/.pnpm
+Downloading @biomejs/cli-linux-x64@2.5.15: 15.78 MB/24.65 MB
+Packages: +34
+++++++++++++++++++++++++++++++++++
+Progress: resolved 34, reused 0, downloaded 34, added 34, done
+
+devDependencies:
++ @biomejs/biome 2.5.15
++ @types/node 26.6.5
++ turbo 2.11.8
++ typescript 5.9.3
+
+Done in 5.3s using pnpm v12.4.2
+--> da8e738b23cd
+[1/2] STEP 9/10: COPY app/frontend ./app/frontend
+--> d90b97b1b549
+[1/2] STEP 10/10: RUN pnpm --filter @repo/frontend build
+$ next build
+▲ Next.js 16.4.0 (Turbopack)
+✓ Running next.config.ts took 14ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 1130ms
+  Running TypeScript ...
+  Finished TypeScript in 855ms ...
+  Collecting page data using 4 workers ...
+  Generating static pages using 4 workers (0/3) ...
+✓ Generating static pages using 4 workers (3/3) in 224ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+└ ○ /_not-found
+
+
+○  (Static)  prerendered as static content
+
+--> deef19d495e7
+[2/2] STEP 1/9: FROM node:24-bookworm-slim AS runtime
+[2/2] STEP 2/9: WORKDIR /app
+--> Using cache 85ef8fb8e348affbb2cdb19b37b76d6bfb809b513eace3f11343c234c41c69f4
+--> 85ef8fb8e348
+[2/2] STEP 3/9: ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3000
+--> Using cache 98a64d0af9639d0c64a95cf5cb7cf061d5afcaabe44a031a0575e0094dc13708
+--> 98a64d0af963
+[2/2] STEP 4/9: COPY --from=build --chown=node:node /app/app/frontend/.next/standalone ./
+--> 426df8f1fc4b
+[2/2] STEP 5/9: COPY --from=build --chown=node:node /app/app/frontend/.next/static ./app/frontend/.next/static
+--> 740bdb669758
+[2/2] STEP 6/9: USER node
+--> 42935fdf4194
+[2/2] STEP 7/9: EXPOSE 3000
+--> c4327a3c216d
+[2/2] STEP 8/9: CMD ["node", "app/frontend/server.js"]
+--> 19d47e96748f
+[2/2] STEP 9/9: LABEL "com.docker.compose.image.builder"="classic"
+[2/2] COMMIT docker.io/library/technical-exam-frontend:local
+--> c83852752502
+Successfully tagged docker.io/library/technical-exam-frontend:local
+c83852752502ec3a3c44d620a06a4735108b3697458684fed3a09ddbf0e873bd
+Successfully built c83852752502
+Successfully tagged technical-exam-frontend:local
+ Image technical-exam-frontend:local Built 
+ Image technical-exam-frontend:local Built 
+
+Finished: 2026-10-21T00:19:56.497485+00:00
+Exit status: 0
