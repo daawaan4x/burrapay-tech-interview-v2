@@ -17,13 +17,8 @@ the required database write succeeds; a write failure returns an error. This
 follows the rules for repeated requests in
 [EXAM.md](../../EXAM.md#required-task-1-parse-a-saved-upload-and-retrieve-the-match).
 
-When first-time parsing is ready, its HTTP response must use the repository's
-creation outcome. Until then, the shared response helper in
-[http.ts](../../app/backend/src/http.ts) keeps a fixed success status and handles
-task 1's tagged errors with `Effect.catchTags`. Unused status/body callbacks were
-removed during the simplicity review. Existing endpoint behavior stays the same,
-with HTTP handling in the places described by
-[README.md](../../README.md#exam-conventions).
+The shared response helper in [http.ts](../../app/backend/src/http.ts) sends the
+selected status and match, and handles tagged errors with `Effect.catchTags`.
 
 ## Consequences
 

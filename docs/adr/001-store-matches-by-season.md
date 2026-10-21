@@ -30,5 +30,6 @@ pairing, and winner derivation, must be designed, written, and debugged by the
 candidate under [AGENTS.md](../../AGENTS.md#candidate-owned-work). AI-assisted
 storage helpers must not take over that work.
 
-Supporting storage is implemented and covered by isolated tests and a real
-Scylla integration check. Candidate-owned parsing remains incomplete.
+Storage is covered by isolated and real Scylla integration tests. Team imports
+extend this layout through the conditional update in
+[ADR 005](005-save-team-imports-with-a-conditional-update.md).
