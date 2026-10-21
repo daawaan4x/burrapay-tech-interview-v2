@@ -28,8 +28,9 @@ The scaffold uses the following conventions:
 - Keep failures typed and tagged. Handle expected errors explicitly with
   `Effect.catchTags` at the HTTP boundary, and log infrastructure failures.
 - Keep validation/types in `src/domain.ts`, domain route plugins in
-  `src/routes/`, shared HTTP helpers in `src/http.ts`, Scylla access in
-  `src/repository.ts`, and startup/resource cleanup in `src/index.ts`.
+  `src/routes/`, shared HTTP helpers in `src/http.ts`, Scylla access behind
+  `src/repository.ts` and its `src/repository/` modules, and startup/resource
+  cleanup in `src/index.ts`.
   `src/app.ts` registers the plugins with their injected repository.
   Fastify's async plugin callbacks only register routes; application workflows
   remain Effect pipelines. Inject persistence so endpoint tests do not require
@@ -123,11 +124,10 @@ docker compose up -d --wait scylla
 SCYLLA_TEST_CONTACT_POINTS=127.0.0.1 pnpm test
 ```
 
-The Scylla cases cover raw-upload readback, concurrent conditional match creation,
-and retrieval under two existing seasons. Each case owns its seasons and closes
-its resources. Cleanup attempts every owned table deletion and reports failures.
-Match setup uses structured fixtures directly; it does not exercise a parser or
-live team import. The three database cases are skipped when
+The Scylla tests cover the upload/parse/import workflow, repeated and concurrent
+requests, season scoping, and saved-data readback. Paste responses are mocked;
+tests do not use the live site. Each case cleans up only its own records and
+closes its resources. Database cases are skipped when
 `SCYLLA_TEST_CONTACT_POINTS` is unset; the isolated cleanup check still runs.
 
 ## API
@@ -209,6 +209,29 @@ curl -i \
 Returns `200` with the saved [match](./EXAM.md#match-response), or `404` if it
 does not exist in that season.
 
-Storage/HTTP code, supporting tests, and these API/setup notes were AI-assisted.
-The parser, designated manual tests, and personal reflection remain
-candidate-owned. Disclose assisted areas in your submission.
+### Import team pastes
+
+```sh
+curl -i -X POST \
+  http://localhost:3001/seasons/1/matches/05b69234-60e2-42e5-91aa-096bcae239d0/teams/import
+```
+
+Takes no body. Returns `200` with the saved match and populated `importedTeams`
+after both pastes are fetched, extracted, parsed, and saved. Preserves participant
+order, source URLs, and extracted text. A failed import leaves the match unchanged.
+Repeated imports return the saved result without fetching or changing `importedAt`.
+Concurrent successful imports return the same saved import.
+
+Fetches recheck the allowed URLs and reject redirects. Each request imports two
+pastes concurrently, with a 10-second deadline per paste through body completion
+and a 1 MiB response limit. Upstream failures return `502`, timeouts `504`, and
+unusable HTML or invalid team text `422`.
+
+Tests use complete browser snapshots. Fresh responses lacked team data during
+the [fixture investigation](./app/backend/test/fixtures/README.md), so successful
+live imports remain unverified. Live requests never fall back to fixtures.
+See [the adapter notes](./docs/task-2-support.md) for extraction details.
+
+# Submission
+
+<TODO>
