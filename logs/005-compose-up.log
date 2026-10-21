@@ -1,25 +1,21 @@
-Command: podman compose up -d --wait --wait-timeout 90
-Started: 2026-10-21T00:22:34.973769+00:00
+Command: podman compose up -d --wait
+Started: 2026-10-21T03:17:36.257642+00:00
 
 [4m>>>> Executing external compose provider "/usr/local/bin/docker-compose". Please see podman-compose(1) for how to disable this message. <<<<
 
-[0m Container burrapay-tech-interview-v2-scylla-1 Running 
- Container burrapay-tech-interview-v2-backend-1 Running 
- Container burrapay-tech-interview-v2-frontend-1 Recreate 
- Container burrapay-tech-interview-v2-frontend-1 Recreated 
+[0m Container burrapay-tech-interview-v2-backend-1 Running 
+ Container burrapay-tech-interview-v2-frontend-1 Running 
+ Container burrapay-tech-interview-v2-scylla-1 Running 
  Container burrapay-tech-interview-v2-scylla-1 Waiting 
  Container burrapay-tech-interview-v2-scylla-1 Healthy 
  Container burrapay-tech-interview-v2-backend-1 Waiting 
  Container burrapay-tech-interview-v2-backend-1 Healthy 
- Container burrapay-tech-interview-v2-frontend-1 Starting 
- Container burrapay-tech-interview-v2-frontend-1 Started 
+ Container burrapay-tech-interview-v2-scylla-1 Waiting 
  Container burrapay-tech-interview-v2-backend-1 Waiting 
  Container burrapay-tech-interview-v2-frontend-1 Waiting 
- Container burrapay-tech-interview-v2-scylla-1 Waiting 
- Container burrapay-tech-interview-v2-backend-1 Healthy 
+ Container burrapay-tech-interview-v2-frontend-1 Healthy 
  Container burrapay-tech-interview-v2-scylla-1 Healthy 
-application not healthy after 1m30s
-Error: executing /usr/local/bin/docker-compose up -d --wait --wait-timeout 90: exit status 1
+ Container burrapay-tech-interview-v2-backend-1 Healthy 
 
-Finished: 2026-10-21T00:24:06.259144+00:00
-Exit status: 1
+Finished: 2026-10-21T03:17:37.831799+00:00
+Exit status: 0

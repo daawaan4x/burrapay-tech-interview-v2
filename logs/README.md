@@ -9,7 +9,7 @@ Each log preserves the command, output, UTC timestamps, and exit status.
 | [002-typecheck.log](002-typecheck.log) | Both apps pass; cache bypassed |
 | [003-test.log](003-test.log) | 207 pass, eight database cases skipped |
 | [004-compose-build.log](004-compose-build.log) | Both images build |
-| [005-compose-up.log](005-compose-up.log) | Fails: automatic health checks time out |
+| [005-compose-up.log](005-compose-up.log) | Pass: all three services healthy |
 | [006-scylla-test.log](006-scylla-test.log) | All 215 pass |
 
 The separate restart check uses compiled handlers, mocked complete HTML, and
